@@ -35,5 +35,13 @@ namespace ytdlp.Api
             configsServices.DeleteConfigByName(configName);
             return NoContent();
         }
+        [HttpPost("config/{configName}")]
+        public IActionResult CreateNewConfig(string configName, [FromBody] string configContent)
+        {
+            Result<string> result = configsServices.CreateNewConfig(configName, configContent);
+            if (result.IsSuccess)
+                return Created();
+            else return Conflict(result.Value);
+        }
     }
 }

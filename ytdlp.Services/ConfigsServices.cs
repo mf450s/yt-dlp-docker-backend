@@ -44,4 +44,18 @@ public class ConfigsServices(IFileSystem fileSystem) : IConfigsServices
         _fileSystem.File.Delete(path);
         return Task.CompletedTask;
     }
+    public Result<string> CreateNewConfig(string name, string configContent)
+    {
+        string newPath = GetWholeConfigPath(name);
+        if (_fileSystem.File.Exists(newPath))
+        {
+            return Result.Fail($"File with name '{name}' already exists");
+        }
+        else
+        {
+            using var writer = _fileSystem.File.CreateText(newPath);
+            writer.Write(configContent);
+            return Result.Ok($"Config file '{name}' created successfully.");
+        }
+    }
 }

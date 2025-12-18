@@ -8,4 +8,5 @@ public interface IConfigsServices
     List<string> GetAllConfigNames();
     Result<string> GetConfigContentByName(string name);
     Task DeleteConfigByName(string name);
+    Result<string> CreateNewConfig(string name, string configContent);
 }
