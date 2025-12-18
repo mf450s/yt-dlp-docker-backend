@@ -38,11 +38,15 @@ public class ConfigsServices(IFileSystem fileSystem) : IConfigsServices
             return Result.Fail($"Config file not found: {path}");
         }
     }
-    public Task DeleteConfigByName(string name)
+    public Result<string> DeleteConfigByName(string name)
     {
         string path = GetWholeConfigPath(name);
-        _fileSystem.File.Delete(path);
-        return Task.CompletedTask;
+        if (_fileSystem.File.Exists(path))
+        {
+            _fileSystem.File.Delete(path);
+            return Result.Ok();
+        }
+        else return Result.Fail("File already exists");
     }
     public Result<string> CreateNewConfig(string name, string configContent)
     {

@@ -208,7 +208,7 @@ public class ConfigsServicesTests
         var sut = new ConfigsServices(mockFileSystem);
 
         // Act
-        await sut.DeleteConfigByName("music");
+        sut.DeleteConfigByName("music");
 
         // Assert
         mockFileSystem.File.Exists("../configs/music.conf").Should().BeFalse();
@@ -229,7 +229,7 @@ public class ConfigsServicesTests
         var sut = new ConfigsServices(mockFileSystem);
 
         // Act
-        await sut.DeleteConfigByName(configName);
+        sut.DeleteConfigByName(configName);
 
         // Assert
         mockFileSystem.File.Exists($"../configs/{configName}.conf").Should().BeFalse();
@@ -245,7 +245,7 @@ public class ConfigsServicesTests
         var sut = new ConfigsServices(mockFileSystem);
 
         // Act
-        Func<Task> act = async () => await sut.DeleteConfigByName("nonexistent");
+        Func<Task> act = async () => sut.DeleteConfigByName("nonexistent");
 
         // Assert
         await act.Should().NotThrowAsync();
@@ -264,7 +264,7 @@ public class ConfigsServicesTests
         var sut = new ConfigsServices(mockFileSystem);
 
         // Act
-        await sut.DeleteConfigByName("video");
+        sut.DeleteConfigByName("video");
 
         // Assert
         mockFileSystem.File.Exists("../configs/music.conf").Should().BeTrue();
