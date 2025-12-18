@@ -1,6 +1,6 @@
 Standard Api Endpoints:
 
-Post: `/api/ytdlp/download?configfilename={name}`
+Post: `/api/ytdlp/download?confName={name}`
 Body: `videolink`
 Returns: `202`
 Downloads the Video
