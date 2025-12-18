@@ -1,19 +1,19 @@
 using ytdlp.Services.Interfaces;
 using System.IO.Abstractions;
-
+using FluentResults;
 namespace ytdlp.Services;
 
 public class ConfigsServices(IFileSystem fileSystem) : IConfigsServices
 {
+    private readonly string configFolder = "../configs/";
     private readonly IFileSystem _fileSystem = fileSystem;
     public string GetWholeConfigPath(string configName)
     {
-        return $"../configs/{configName}.conf";
+        return $"{configFolder}{configName}.conf";
     }
     public List<string> GetAllConfigNames()
     {
-        string path = "../configs/";
-        var files = _fileSystem.Directory.GetFiles(path, "*.conf");
+        var files = _fileSystem.Directory.GetFiles(configFolder, "*.conf");
         var configNames = new List<string>();
 
         foreach (var file in files)
@@ -24,5 +24,18 @@ public class ConfigsServices(IFileSystem fileSystem) : IConfigsServices
         }
 
         return configNames;
+    }
+    public Result<string> GetConfigContentByName(string name)
+    {
+        string path = GetWholeConfigPath(name);
+        if (_fileSystem.File.Exists(path))
+        {
+            using var reader = _fileSystem.File.OpenText(path);
+            return Result.Ok(reader.ReadToEnd());
+        }
+        else
+        {
+            return Result.Fail($"Config file not found: {path}");
+        }
     }
 }

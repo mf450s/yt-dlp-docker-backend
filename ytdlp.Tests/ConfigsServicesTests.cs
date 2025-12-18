@@ -1,6 +1,7 @@
 using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
 using ytdlp.Services;
+using FluentResults;
 
 namespace ytdlp.Tests.Services;
 
@@ -113,4 +114,81 @@ public class ConfigsServicesTests
         result.Should().Contain("test");
         result.Should().NotContain("test.conf");
     }
+
+    [Fact]
+    public void GetConfigContentByName_WhenFileExists_ShouldReturnContentSuccessfully()
+    {
+        // Arrange
+        var expectedContent = "--format bestvideo+bestaudio\n--output '%(title)s.%(ext)s'";
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { "../configs/music.conf", new MockFileData(expectedContent) }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        var result = sut.GetConfigContentByName("music");
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(expectedContent);
+    }
+
+    [Fact]
+    public void GetConfigContentByName_WhenFileDoesNotExist_ShouldReturnFailure()
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem();
+        mockFileSystem.AddDirectory("../configs/");
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        var result = sut.GetConfigContentByName("nonexistent");
+
+        // Assert
+        result.IsFailed.Should().BeTrue();
+        result.Errors.Should().ContainSingle();
+        result.Errors[0].Message.Should().Contain("Config file not found");
+        result.Errors[0].Message.Should().Contain("../configs/nonexistent.conf");
+    }
+
+    [Theory]
+    [InlineData("music", "--extract-audio\n--audio-format mp3")]
+    [InlineData("video", "--format bestvideo")]
+    [InlineData("playlist", "--yes-playlist")]
+    public void GetConfigContentByName_WithDifferentConfigs_ShouldReturnCorrectContent(string configName, string expectedContent)
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { $"../configs/{configName}.conf", new MockFileData(expectedContent) }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        var result = sut.GetConfigContentByName(configName);
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be(expectedContent);
+    }
+
+    [Fact]
+    public void GetConfigContentByName_WhenFileIsEmpty_ShouldReturnEmptyString()
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { "../configs/empty.conf", new MockFileData("") }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        var result = sut.GetConfigContentByName("empty");
+
+        // Assert
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().BeEmpty();
+    }
+
 }

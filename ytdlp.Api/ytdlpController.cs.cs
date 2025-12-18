@@ -1,7 +1,6 @@
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ytdlp.Services;
 using ytdlp.Services.Interfaces;
+using FluentResults;
 
 namespace ytdlp.Api
 {
@@ -23,12 +22,12 @@ namespace ytdlp.Api
         [HttpGet("config/{configName}")]
         public IActionResult GetConfigByName(string configName)
         {
-            string configContent = configsServices.GetConfigContent(configName);
-            if (string.IsNullOrEmpty(configContent))
+            Result<string> configContent = configsServices.GetConfigContentByName(configName);
+            if (configContent.IsFailed)
             {
-                return NotFound($"Configuration file '{configName}' not found.");
+                return NotFound(configContent.Errors.First().Message);
             }
-            return Ok(configContent);
+            return Ok(configContent.Value);
         }
     }
 }
