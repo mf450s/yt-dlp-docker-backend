@@ -2,9 +2,10 @@ using System.IO.Abstractions.TestingHelpers;
 using FluentAssertions;
 using ytdlp.Services;
 using FluentResults;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ytdlp.Tests.Services;
-
+[ExcludeFromCodeCoverage]
 public class ConfigsServicesTests
 {
     #region GetConfigPath

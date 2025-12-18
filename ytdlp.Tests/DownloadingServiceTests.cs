@@ -1,9 +1,11 @@
-﻿using Moq;
+﻿using System.Diagnostics.CodeAnalysis;
+using Moq;
 using ytdlp.Services;
 using ytdlp.Services.Interfaces;
 #nullable disable
 namespace ytdlp.Tests
 {
+    [ExcludeFromCodeCoverage]
     public class DownloadingServiceTests
     {
         private readonly Mock<IConfigsServices> _mockConfigsService;
