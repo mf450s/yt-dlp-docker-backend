@@ -1,6 +1,4 @@
 obj/
 bin/
-ytdlp.Tests/
-.vscode/
 *.dll
 *.exe
