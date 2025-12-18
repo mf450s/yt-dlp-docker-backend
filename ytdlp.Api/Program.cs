@@ -1,5 +1,6 @@
 using ytdlp.Services.Interfaces;
 using ytdlp.Services;
+using System.IO.Abstractions;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -18,9 +19,10 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Add DI for IDownloadingService
+// Add DI
 builder.Services.AddScoped<IDownloadingService, DownloadingService>();
 builder.Services.AddScoped<IConfigsServices, ConfigsServices>();
+builder.Services.AddSingleton<IFileSystem, FileSystem>();
 
 var app = builder.Build();
 
