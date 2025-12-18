@@ -22,7 +22,7 @@ namespace ytdlp.Tests
         {
             // Arrange
             var configName = "test-config";
-            var expected = $"./configs/{configName}.conf";
+            var expected = $"../configs/{configName}.conf";
 
             // Act
             var method = typeof(DownloadingService).GetMethod("GetWholeConfigPath", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -38,7 +38,7 @@ namespace ytdlp.Tests
             // Arrange
             var url = "https://example.com/video";
             var configName = "config";
-            var wholeConfigPath = $"./configs/{configName}.conf";
+            var wholeConfigPath = $"../configs/{configName}.conf";
 
             var method = typeof(DownloadingService).GetMethod("GetProcessStartInfoAsync", BindingFlags.NonPublic | BindingFlags.Instance);
             var startInfoTask = (Task<ProcessStartInfo>)method.Invoke(_service, [url, wholeConfigPath]);
