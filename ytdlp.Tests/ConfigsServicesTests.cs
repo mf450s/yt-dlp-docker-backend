@@ -191,4 +191,79 @@ public class ConfigsServicesTests
         result.Value.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task DeleteConfigByName_WhenFileExists_ShouldDeleteFile()
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { "../configs/music.conf", new MockFileData("# Music Config") }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        await sut.DeleteConfigByName("music");
+
+        // Assert
+        mockFileSystem.File.Exists("../configs/music.conf").Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("music")]
+    [InlineData("video")]
+    [InlineData("playlist")]
+    public async Task DeleteConfigByName_WithDifferentNames_ShouldDeleteCorrectFile(string configName)
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { $"../configs/{configName}.conf", new MockFileData("# Config Content") },
+        { "../configs/other.conf", new MockFileData("# Other Config") }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        await sut.DeleteConfigByName(configName);
+
+        // Assert
+        mockFileSystem.File.Exists($"../configs/{configName}.conf").Should().BeFalse();
+        mockFileSystem.File.Exists("../configs/other.conf").Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DeleteConfigByName_WhenFileDoesNotExist_ShouldNotThrowException()
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem();
+        mockFileSystem.AddDirectory("../configs/");
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        Func<Task> act = async () => await sut.DeleteConfigByName("nonexistent");
+
+        // Assert
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task DeleteConfigByName_WhenMultipleFilesExist_ShouldOnlyDeleteSpecifiedFile()
+    {
+        // Arrange
+        var mockFileSystem = new MockFileSystem(new Dictionary<string, MockFileData>
+    {
+        { "../configs/music.conf", new MockFileData("# Music") },
+        { "../configs/video.conf", new MockFileData("# Video") },
+        { "../configs/playlist.conf", new MockFileData("# Playlist") }
+    });
+        var sut = new ConfigsServices(mockFileSystem);
+
+        // Act
+        await sut.DeleteConfigByName("video");
+
+        // Assert
+        mockFileSystem.File.Exists("../configs/music.conf").Should().BeTrue();
+        mockFileSystem.File.Exists("../configs/video.conf").Should().BeFalse();
+        mockFileSystem.File.Exists("../configs/playlist.conf").Should().BeTrue();
+    }
+
 }

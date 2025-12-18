@@ -29,5 +29,11 @@ namespace ytdlp.Api
             }
             return Ok(configContent.Value);
         }
+        [HttpDelete("config/{configName}")]
+        public IActionResult DeleteConfigByName(string configName)
+        {
+            configsServices.DeleteConfigByName(configName);
+            return NoContent();
+        }
     }
 }

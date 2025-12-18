@@ -38,4 +38,10 @@ public class ConfigsServices(IFileSystem fileSystem) : IConfigsServices
             return Result.Fail($"Config file not found: {path}");
         }
     }
+    public Task DeleteConfigByName(string name)
+    {
+        string path = GetWholeConfigPath(name);
+        _fileSystem.File.Delete(path);
+        return Task.CompletedTask;
+    }
 }
