@@ -6,12 +6,17 @@ using ytdlp.Configs;
 using System.Text;
 namespace ytdlp.Services;
 
-public class ConfigsServices(IFileSystem fileSystem, IOptions<PathConfiguration> paths) : IConfigsServices
+public class ConfigsServices(
+    IFileSystem fileSystem,
+    IOptions<PathConfiguration> paths,
+    IPathParserService pathParserService
+    ) : IConfigsServices
 {
     private readonly string configFolder = paths.Value.Config;
     private readonly string downloadFolder = paths.Value.Downloads;
     private readonly string archiveFolder = paths.Value.Archive;
     private readonly IFileSystem _fileSystem = fileSystem;
+    private readonly IPathParserService pathParser = pathParserService;
     public string GetWholeConfigPath(string configName)
     {
         return $"{configFolder}{configName}.conf";
@@ -86,12 +91,6 @@ public class ConfigsServices(IFileSystem fileSystem, IOptions<PathConfiguration>
     }
     internal string FixConfigContent(string content)
     {
-        List<string> lines = MakeOneArgumentPerLine(content);
-        return string.Join(Environment.NewLine, lines);
-    }
-
-    internal List<string> MakeOneArgumentPerLine(string content)
-    {
         var lines = content.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
         var returnList = new List<string>();
 
@@ -110,89 +109,12 @@ public class ConfigsServices(IFileSystem fileSystem, IOptions<PathConfiguration>
 
             foreach (var arg in args)
             {
-                string fixedArg = CheckAndFixOutputAndPath(arg);
+                string fixedArg = pathParser.CheckAndFixPaths(arg);
                 returnList.Add(fixedArg);
             }
         }
-        return returnList;
+        return string.Join(Environment.NewLine, lines);
     }
-
-    internal string CheckAndFixOutputAndPath(string line)
-    {
-        string trimmed = line.Trim();
-
-        // Check for -o or --output
-        if (trimmed.StartsWith("-o ") || trimmed.StartsWith("--output "))
-        {
-            return FixOutputPath(trimmed);
-        }
-
-        // Check for -P or --paths
-        if (trimmed.StartsWith("-P ") || trimmed.StartsWith("--paths "))
-        {
-            return FixPathPath(trimmed);
-        }
-
-        // Return unchanged if not an output/path option
-        return line;
-    }
-
-    internal string FixOutputPath(string line)
-    {
-        string[] parts = line.Split([' '], 2);
-
-        if (parts.Length != 2)
-            return line;
-
-        string template = parts[1].TrimStart();
-
-        // Remove quotes if present
-        if (template.StartsWith("\"") && template.EndsWith("\""))
-            template = template.Substring(1, template.Length - 2);
-
-        // Add downloadFolder if not already present
-        if (!template.Contains(downloadFolder))
-        {
-            template = Path.Combine(downloadFolder, template);
-        }
-
-        return $"{parts[0]} \"{template}\"";
-    }
-
-    internal string FixPathPath(string line)
-    {
-        string[] parts = line.Split([' '], 2);
-
-        if (parts.Length != 2)
-            return line;
-
-        string pathValue = parts[1].TrimStart();
-
-        // Remove quotes if present
-        if (pathValue.StartsWith("\"") && pathValue.EndsWith("\""))
-            pathValue = pathValue.Substring(1, pathValue.Length - 2);
-
-        // Check if downloadFolder is already in path
-        if (pathValue.Contains(downloadFolder))
-            return line;
-
-        // Handle type:path format (e.g., "home:/downloads")
-        if (pathValue.Contains(':'))
-        {
-            string[] pathParts = pathValue.Split([':'], 2);
-            string type = pathParts[0];
-            string path = pathParts[1];
-            string newArg = $"{parts[0]} \"{type}:{downloadFolder}{path}\"";
-
-            return newArg;
-        }
-        else
-        {
-            string newArg = $"{parts[0]} \"{downloadFolder}{pathValue}\"";
-            return newArg;
-        }
-    }
-
     internal List<string> SplitArguments(string line)
     {
         var args = new List<string>();
