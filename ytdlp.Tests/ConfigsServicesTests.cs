@@ -1,6 +1,7 @@
 using System.IO.Abstractions.TestingHelpers;
 using Microsoft.Extensions.Options;
 using ytdlp.Configs;
+using Moq;
 using FluentAssertions;
 using ytdlp.Services;
 using FluentResults;
@@ -570,103 +571,315 @@ public class ConfigsServicesTests
     }
     #endregion
     #region SplitArguments
-[Theory]
-[InlineData("-o \"file.mp4\" -f best", new[] { "-o \"file.mp4\"", "-f best" })]
-[InlineData("--output '%(title)s.%(ext)s'", new[] { "--output '%(title)s.%(ext)s'" })]
-[InlineData("-f best -o output.mp4", new[] { "-f best", "-o output.mp4" })]
-[InlineData("--format bestvideo", new[] { "--format bestvideo" })]
-public void SplitArguments_WithVariousFormats_ShouldSplitCorrectly(string input, string[] expected)
-{
-    // Arrange
-    var sut = GetConfigsServices();
+    [Theory]
+    [InlineData("-o \"file.mp4\" -f best", new[] { "-o \"file.mp4\"", "-f best" })]
+    [InlineData("--output '%(title)s.%(ext)s'", new[] { "--output '%(title)s.%(ext)s'" })]
+    [InlineData("-f best -o output.mp4", new[] { "-f best", "-o output.mp4" })]
+    [InlineData("--format bestvideo", new[] { "--format bestvideo" })]
+    public void SplitArguments_WithVariousFormats_ShouldSplitCorrectly(string input, string[] expected)
+    {
+        // Arrange
+        var sut = GetConfigsServices();
 
-    // Act
-    var result = sut.SplitArguments(input);
+        // Act
+        var result = sut.SplitArguments(input);
 
-    // Assert
-    result.Should().Equal(expected);
-}
+        // Assert
+        result.Should().Equal(expected);
+    }
 
-[Fact]
-public void SplitArguments_WithEmptyString_ShouldReturnEmptyList()
-{
-    // Arrange
-    var sut = GetConfigsServices();
+    [Fact]
+    public void SplitArguments_WithEmptyString_ShouldReturnEmptyList()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
 
-    // Act
-    var result = sut.SplitArguments("");
+        // Act
+        var result = sut.SplitArguments("");
 
-    // Assert
-    result.Should().BeEmpty();
-}
-#endregion
+        // Assert
+        result.Should().BeEmpty();
+    }
+    #endregion
 
-#region FixConfigContent
-[Fact]
-public void FixConfigContent_WithMultilineInput_ShouldReturnFormattedString()
-{
-    // Arrange
-    var sut = GetConfigsServices();
-    var input = "--format bestvideo\n-o output.mp4";
+    #region FixConfigContent
+    [Fact]
+    public void FixConfigContent_WithMultilineInput_ShouldReturnFormattedString()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var input = "--format bestvideo\n-o output.mp4";
 
-    // Act
-    var result = sut.FixConfigContent(input);
+        // Act
+        var result = sut.FixConfigContent(input);
 
-    // Assert
-    result.Should().Contain(Environment.NewLine);
-    result.Should().Contain("--format");
-    result.Should().Contain(paths.Downloads);
-}
+        // Assert
+        result.Should().Contain(Environment.NewLine);
+        result.Should().Contain("--format");
+        result.Should().Contain(paths.Downloads);
+    }
 
-[Fact]
-public void FixConfigContent_WithCommentsAndArgs_ShouldPreserveBoth()
-{
-    // Arrange
-    var sut = GetConfigsServices();
-    var input = "# Download config\n--format bestvideo\n# Output settings\n-o video.mp4";
+    [Fact]
+    public void FixConfigContent_WithCommentsAndArgs_ShouldPreserveBoth()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var input = "# Download config\n--format bestvideo\n# Output settings\n-o video.mp4";
 
-    // Act
-    var result = sut.FixConfigContent(input);
+        // Act
+        var result = sut.FixConfigContent(input);
 
-    // Assert
-    result.Should().Contain("# Download config");
-    result.Should().Contain("# Output settings");
-    result.Should().Contain("--format");
-}
+        // Assert
+        result.Should().Contain("# Download config");
+        result.Should().Contain("# Output settings");
+        result.Should().Contain("--format");
+    }
 
-[Fact]
-public void FixConfigContent_WithEmptyString_ShouldReturnEmptyString()
-{
-    // Arrange
-    var sut = GetConfigsServices();
-    var input = "";
+    [Fact]
+    public void FixConfigContent_WithEmptyString_ShouldReturnEmptyString()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var input = "";
 
-    // Act
-    var result = sut.FixConfigContent(input);
+        // Act
+        var result = sut.FixConfigContent(input);
 
-    // Assert
-    result.Should().BeEmpty();
-}
+        // Assert
+        result.Should().BeEmpty();
+    }
 
-[Fact]
-public void FixConfigContent_WithComplexConfig_ShouldFixAllPaths()
-{
-    // Arrange
-    var sut = GetConfigsServices();
-    var input = @"--format bestvideo
+    [Fact]
+    public void FixConfigContent_WithComplexConfig_ShouldFixAllPaths()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var input = @"--format bestvideo
 -o video.mp4
 --paths home:/downloads
 # End of config";
 
-    // Act
-    var result = sut.FixConfigContent(input);
+        // Act
+        var result = sut.FixConfigContent(input);
 
-    // Assert
-    var lines = result.Split(Environment.NewLine);
-    lines.Should().Contain(line => line.Contains(paths.Downloads) && line.Contains("video.mp4"));
-    lines.Should().Contain(line => line.Contains(paths.Downloads) && line.Contains("home:"));
-    lines.Should().Contain("# End of config");
-}
-#endregion
+        // Assert
+        var lines = result.Split(Environment.NewLine);
+        lines.Should().Contain(line => line.Contains(paths.Downloads) && line.Contains("video.mp4"));
+        lines.Should().Contain(line => line.Contains(paths.Downloads) && line.Contains("home:"));
+        lines.Should().Contain("# End of config");
+    }
+    #endregion
 
+    #region FixConfigContent Tests
+    [Fact]
+    public void FixConfigContent_EmptyString_ReturnsEmptyString()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var content = string.Empty;
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void FixConfigContent_OnlyWhitespace_ReturnsOriginalLines()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var content = "   \n  \n\t\n";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public void FixConfigContent_OnlyComments_ReturnsUnchanged()
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+        var content = "# This is a comment\n# Another comment\n#Third comment";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.Contains("# This is a comment", result);
+        Assert.Contains("# Another comment", result);
+        Assert.Contains("#Third comment", result);
+    }
+
+    [Fact]
+    public void FixConfigContent_MixedCommentsAndContent_PreservesComments()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser
+            .Setup(p => p.CheckAndFixPaths(It.IsAny<string>()))
+            .Returns<string>(s => s); // Return unchanged for this test
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "# Comment\nsome config line\n# Another comment";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.Contains("# Comment", result);
+        Assert.Contains("# Another comment", result);
+    }
+
+    [Fact]
+    public void FixConfigContent_SingleConfigLine_CallsPathParser()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths("config_value"))
+                     .Returns("/fixed/path/config_value");
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "config_value";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        mockPathParser.Verify(p => p.CheckAndFixPaths("config_value"), Times.Once);
+        Assert.Contains("/fixed/path/config_value", result);
+    }
+
+    [Fact]
+    public void FixConfigContent_MultipleArguments_ProcessesEachArgument()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths(It.IsAny<string>()))
+                     .Returns<string>(s => $"fixed_{s}");
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "arg1 arg2 arg3";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        mockPathParser.Verify(p => p.CheckAndFixPaths(It.IsAny<string>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public void FixConfigContent_PathWithSpaces_HandlesCorrectly()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths("/path/with spaces"))
+                     .Returns("/path/with spaces");
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "/path/with spaces";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public void FixConfigContent_WindowsAndUnixLineEndings_HandlesCorrectly()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths(It.IsAny<string>()))
+                     .Returns<string>(s => s);
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "line1\r\nline2\nline3\rline4";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.NotEmpty(result);
+    }
+
+    [Fact]
+    public void FixConfigContent_LeadingAndTrailingWhitespace_TrimsCorrectly()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths("config"))
+                     .Returns("fixed_config");
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = "   config   ";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        mockPathParser.Verify(p => p.CheckAndFixPaths("config"), Times.Once);
+    }
+
+    [Fact]
+    public void FixConfigContent_ComplexConfigFile_ProcessesCorrectly()
+    {
+        // Arrange
+        var mockPathParser = new Mock<PathParserSerivce>();
+        mockPathParser.Setup(p => p.CheckAndFixPaths(It.IsAny<string>()))
+                     .Returns<string>(s => $"/fixed{s}");
+
+        var sut = GetConfigsServices(pathParserSerivce: mockPathParser.Object);
+        var content = @"# Configuration file
+# Generated automatically
+
+/path/to/file
+/another/path
+
+# End of config";
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.Contains("# Configuration file", result);
+        Assert.Contains("# Generated automatically", result);
+        Assert.Contains("# End of config", result);
+        Assert.Contains("/fixed", result);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("\t")]
+    [InlineData("\n")]
+    public void FixConfigContent_EmptyOrWhitespaceInput_HandlesGracefully(string content)
+    {
+        // Arrange
+        var sut = GetConfigsServices();
+
+        // Act
+        var result = sut.FixConfigContent(content);
+
+        // Assert
+        Assert.NotNull(result);
+    }
+
+    [Fact]
+    public void FixConfigContent_NullPathParser_ThrowsException()
+    {
+        // Arrange
+        var sut = GetConfigsServices(pathParserSerivce: null);
+        var content = "some content";
+
+        // Act & Assert
+        Assert.Throws<NullReferenceException>(() => sut.FixConfigContent(content));
+    }
+
+    #endregion
 }

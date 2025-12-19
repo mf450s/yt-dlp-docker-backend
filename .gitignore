@@ -4,3 +4,4 @@ bin/
 *.exe
 downloads/
 .vscode/
+.DS_Store

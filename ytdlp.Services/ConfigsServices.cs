@@ -113,7 +113,7 @@ public class ConfigsServices(
                 returnList.Add(fixedArg);
             }
         }
-        return string.Join(Environment.NewLine, lines);
+        return string.Join(Environment.NewLine, returnList);
     }
     internal List<string> SplitArguments(string line)
     {
