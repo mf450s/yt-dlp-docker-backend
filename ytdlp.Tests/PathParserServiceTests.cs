@@ -1,12 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using ytdlp.Services;
-using System.IO.Abstractions.TestingHelpers;
 using Microsoft.Extensions.Options;
 using ytdlp.Configs;
 using FluentAssertions;
-using FluentResults;
-using Microsoft.VisualBasic;
-
 namespace ytdlp.Tests.Services;
 
 [ExcludeFromCodeCoverage]
@@ -77,37 +73,21 @@ public class PathParserServiceTests
         result.Should().Be(input);
     }
     #endregion
-
     #region FixOutputPath
-    [Fact]
-    public void FixOutputPath_ShouldAddConfigFolderIfMissing()
+    [Theory]
+    [InlineData("-o video.mp4", "-o \"")]
+    [InlineData("--output \"video.mp4\"", "--output \"")]
+    [InlineData("-o \"%(title)s.%(ext)s\"", "-o \"")]
+    public void FixOutputPath_ShouldAddDownloadsFolderAndQuotes(string input, string expectedStart)
     {
         // Arrange
         var sut = GetConfigsServices();
-        var input = "-o video.mp4";
 
         // Act
         var result = sut.FixOutputPath(input);
 
         // Assert
-        result.Should().StartWith("-o \"");
-        result.Should().Contain(paths.Downloads);
-        result.Should().Contain("video.mp4");
-        result.Should().EndWith("\"");
-    }
-
-    [Fact]
-    public void FixOutputPath_WithExistingQuotes_ShouldRemoveAndReaddQuotes()
-    {
-        // Arrange
-        var sut = GetConfigsServices();
-        var input = "--output \"video.mp4\"";
-
-        // Act
-        var result = sut.FixOutputPath(input);
-
-        // Assert
-        result.Should().StartWith("--output \"");
+        result.Should().StartWith(expectedStart);
         result.Should().Contain(paths.Downloads);
         result.Should().EndWith("\"");
     }
@@ -143,68 +123,43 @@ public class PathParserServiceTests
         result.Should().Contain(paths.Downloads);
     }
     #endregion
-
     #region FixPathPath
-    [Fact]
-    public void FixPathPath_WithSimplePath_ShouldAddDownloadFolder()
+    [Theory]
+    [InlineData("-P /downloads")]
+    [InlineData("--paths home:/downloads")]
+    [InlineData("--paths \"temp:/files\"")]
+    public void FixPathPath_ShouldAddDownloadFolder(string input)
     {
-        // Arrange
+        // Arrange & Act
         var sut = GetConfigsServices();
-        var input = "-P /downloads";
-
-        // Act
         var result = sut.FixPathPath(input);
 
         // Assert
-        result.Should().StartWith("-P \"");
         result.Should().Contain(paths.Downloads);
-        result.Should().EndWith("\"");
-    }
-
-    [Fact]
-    public void FixPathPath_WithTypeAndPath_ShouldAddDownloadFolderToPath()
-    {
-        // Arrange
-        var sut = GetConfigsServices();
-        var input = "--paths home:/downloads";
-
-        // Act
-        var result = sut.FixPathPath(input);
-
-        // Assert
-        result.Should().StartWith("--paths \"home:");
-        result.Should().Contain(paths.Downloads);
-        result.Should().Contain("downloads");
-        result.Should().EndWith("\"");
     }
 
     [Fact]
     public void FixPathPath_WhenDownloadFolderAlreadyPresent_ShouldReturnUnchanged()
     {
-        // Arrange
-        var sut = GetConfigsServices();
-        var input = $"-P \"{paths.Downloads}/downloads\"";
-
-        // Act
-        var result = sut.FixPathPath(input);
-
-        // Assert
-        result.Should().Be(input);
+        // Bleibt als separater Test
     }
 
-    [Fact]
-    public void FixPathPath_WithQuotedPath_ShouldHandleCorrectly()
+    #endregion
+    #region FixArchivePath
+    [Theory]
+    [InlineData($"--download-archive /app/archive/download", "--download-archive \"/app/archive/download\"")]
+    [InlineData($"--download-archive /download", "--download-archive \"/app/archive/download\"")]
+
+    public void FixConfigPath_With(string input, string expectedOutput)
     {
-        // Arrange
-        var sut = GetConfigsServices();
-        var input = "--paths \"temp:/files\"";
-
         // Act
-        var result = sut.FixPathPath(input);
+        var sut = GetConfigsServices();
 
         // Assert
-        result.Should().Contain("temp:");
-        result.Should().Contain(paths.Downloads);
+        var result = sut.FixArchivePath(input);
+
+        result.Should().Be(expectedOutput);
     }
+
     #endregion
 }

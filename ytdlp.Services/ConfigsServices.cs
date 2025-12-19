@@ -115,7 +115,7 @@ public class ConfigsServices(
         }
         return string.Join(Environment.NewLine, returnList);
     }
-    internal List<string> SplitArguments(string line)
+    internal static List<string> SplitArguments(string line)
     {
         var args = new List<string>();
         var currentArg = new StringBuilder();

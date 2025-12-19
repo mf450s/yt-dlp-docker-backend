@@ -29,10 +29,15 @@ public class PathParserSerivce(IOptions<PathConfiguration> paths) : IPathParserS
             return FixPathPath(trimmed);
         }
 
+        if (trimmed.StartsWith("--download-archive"))
+        {
+            return FixArchivePath(trimmed);
+        }
+
         // Return unchanged if not an output/path option
         return line;
     }
-     internal string FixOutputPath(string line)
+    internal string FixOutputPath(string line)
     {
         string[] parts = line.Split([' '], 2);
 
@@ -88,4 +93,22 @@ public class PathParserSerivce(IOptions<PathConfiguration> paths) : IPathParserS
         }
     }
 
+    internal string FixArchivePath(string line)
+    {
+        string[] parts = line.Split([' '], 2);
+        if (parts.Length != 2)
+            return line;
+        string template = parts[1].TrimStart();
+        if (template.StartsWith("\"") && template.EndsWith("\""))
+            template = template.Substring(1, template.Length - 2);
+
+        if (!template.Contains(archiveFolder))
+        {
+            // remove leading "/" to avoid "//"
+            if (template.StartsWith("/"))
+                template = template[1..];
+            template = $"{archiveFolder}{template}";
+        }
+        return $"{parts[0]} \"{template}\"";
+    }
 }
