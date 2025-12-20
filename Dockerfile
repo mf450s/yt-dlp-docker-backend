@@ -3,7 +3,6 @@ WORKDIR /src
 
 COPY . .
 RUN dotnet restore
-
 RUN dotnet publish -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
@@ -16,8 +15,8 @@ RUN apk add --no-cache \
     curl \
     unzip \
     tini \
-    && pip install --no-cache-dir --upgrade yt-dlp \
-    && curl -fsSL https://deno.land/install/install.sh | sh \
+    && pip install --no-cache-dir --upgrade --break-system-packages yt-dlp \
+    && curl -fsSL https://deno.land/x/install/install.sh | sh \
     && mv /root/.deno/bin/deno /usr/local/bin/ \
     && chmod +x /usr/local/bin/deno \
     && addgroup -g 1000 media \
@@ -34,7 +33,6 @@ RUN echo "--restrict-filenames" > /app/configs/default.conf \
     && echo "--sponsorblock-mark selfpromo,intro,outro,hook" >> /app/configs/default.conf
 
 VOLUME ["/app/downloads", "/app/archive", "/app/configs"]
-
 EXPOSE 8080
 
 ENTRYPOINT ["/sbin/tini", "--"]
