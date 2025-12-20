@@ -22,10 +22,13 @@ Standard Directories:
 
 
 ---
+## ToDO
+- [ ] Command Injektion fixen
+- [ ] cookie text support
+- [ ] 
+
+---
 Dump:
 
 
 ich rufe yt-dlp als binary auf(glaub ich). Ich konfiguriere halt nen yt-dlp befehl. yt-dlp und seine dependencys sollen mitinstalliert werden. ffmpeg zum beispiel auch. Und ich bekomme irgendne jsruntime warnung und irgendwas von "Deno" steht da dann auch bei. Das sollte gefixt werden
-
-  - [ ] Command Injektion fixen
-  - [ ] FixConfigContent Tests fixen (5 sind kaputt)
