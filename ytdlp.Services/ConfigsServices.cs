@@ -19,7 +19,7 @@ public class ConfigsServices(
     private readonly IPathParserService pathParser = pathParserService;
     public string GetWholeConfigPath(string configName)
     {
-        return $"{configFolder}{configName}.conf";
+        return $"{configFolder}/{configName}.conf";
     }
     public List<string> GetAllConfigNames()
     {

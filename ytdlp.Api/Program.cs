@@ -24,6 +24,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<IDownloadingService, DownloadingService>();
 builder.Services.AddScoped<IConfigsServices, ConfigsServices>();
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
+builder.Services.AddScoped<IPathParserService, PathParserService>();
 
 
 builder.Services.Configure<PathConfiguration>(
