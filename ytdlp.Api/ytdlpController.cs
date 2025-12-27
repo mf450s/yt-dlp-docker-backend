@@ -9,7 +9,6 @@ namespace ytdlp.Api
     public class ytdlpController(IDownloadingService downloadingService, IConfigsServices configsServices) : ControllerBase
     {
         [HttpPost("download")]
-        [Consumes("text/plain")]
         public IActionResult Download([FromBody] string url, [FromQuery] string confName)
         {
             downloadingService.TryDownloadingFromURL(url, confName);

@@ -1,8 +1,16 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
-COPY . .
+
+COPY ytdlp.sln .
+COPY ytdlp.Api/*.csproj ./ytdlp.Api/
+COPY ytdlp.Services/*.csproj ./ytdlp.Services/
+COPY ytdlp.Tests/*.csproj ./ytdlp.Tests/
 RUN dotnet restore
-RUN dotnet publish -c Release -o /app/publish --no-restore
+
+COPY . .
+RUN dotnet build -c Release --no-restore
+
+RUN dotnet publish ytdlp.Api/ytdlp.Api.csproj -c Release -o /app/publish --no-build --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS runtime
 WORKDIR /app
@@ -26,6 +34,12 @@ RUN apk add --no-cache \
 COPY --from=build /app/publish .
 
 VOLUME ["/app/downloads", "/app/archive", "/app/configs"]
+
+USER yt-dlp
+
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["dotnet", "ytdlp.Api.dll"]

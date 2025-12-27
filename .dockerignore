@@ -1,0 +1,33 @@
+# Build artifacts
+**/bin/
+**/obj/
+**/out/
+**/.vs/
+**/.vscode/
+
+# Test results
+**/TestResults/
+**/*.trx
+
+# User-specific files
+**/*.user
+**/*.suo
+**/*.cache
+
+# Downloads/Archive (nicht ins Image)
+downloads/
+archive/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+**/.dockerignore
+**/Dockerfile*
+**/docker-compose*
+
+# Documentation
+README.md
+LICENSE
