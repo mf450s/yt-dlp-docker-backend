@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using ytdlp.Services.Interfaces;
 using FluentResults;
+using System.Text;
 
 namespace ytdlp.Api
 {
@@ -38,8 +39,11 @@ namespace ytdlp.Api
             else return NotFound();
         }
         [HttpPost("config/{configName}")]
-        public async Task<IActionResult> CreateNewConfigAsync(string configName, [FromBody] string configContent)
+        public async Task<IActionResult> CreateNewConfigAsync(string configName)
         {
+            using var reader = new StreamReader(Request.Body, Encoding.UTF8);
+            string configContent = await reader.ReadToEndAsync();
+
             Result<string> result = await configsServices.CreateNewConfigAsync(configName, configContent);
             if (result.IsSuccess)
                 return Created();
