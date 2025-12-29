@@ -12,29 +12,19 @@ COPY ytdlp.Services/ytdlp.Services.csproj ./ytdlp.Services/
 COPY ytdlp.Tests/ytdlp.Tests.csproj ./ytdlp.Tests/
 
 # Restore dependencies (cached layer for faster builds)
-RUN dotnet restore --no-cache
+RUN dotnet restore ytdlp.Api/ytdlp.Api.csproj
 
 # Copy entire source
 COPY . .
 
-# Build in Release mode with trimming for smaller runtime
-RUN dotnet build ytdlp.Api/ytdlp.Api.csproj \
-    -c Release \
-    --no-restore \
-    -p:DebugType=none \
-    -p:DebugSymbols=false
-
-# Publish with optimizations
+# Build and publish in one step (no intermediate build)
 RUN dotnet publish ytdlp.Api/ytdlp.Api.csproj \
     -c Release \
     -o /app/publish \
-    --no-build \
     --no-restore \
     -p:PublishReadyToRun=true \
-    -p:PublishTrimmed=false \
-    -p:PublishSingleFile=false \
-    -p:SelfContained=false \
-    -p:IncludeNativeLibrariesForSelfExtract=false
+    -p:DebugType=none \
+    -p:DebugSymbols=false
 
 # ============================================================================
 # Stage 2: RUNTIME
@@ -50,12 +40,11 @@ RUN apk add --no-cache \
     py3-pip \
     ffmpeg \
     curl \
-    unzip \
-    tini \
     ca-certificates \
-    tzdata
+    tzdata \
+    tini
 
-# Install yt-dlp
+# Install yt-dlp with version pinning
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2024.12.06/yt-dlp \
     -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
