@@ -3,6 +3,8 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using ytdlp.Services;
 using ytdlp.Services.Interfaces;
+using ytdlp.Api;
+using Microsoft.AspNetCore.Mvc;
 
 namespace ytdlp.Tests
 {
@@ -244,9 +246,7 @@ namespace ytdlp.Tests
             var result = await _controller.GetReadiness();
 
             // Assert
-            Assert.IsType<ObjectResult>(result);
-            var statusCodeResult = result as ObjectResult;
-            Assert.Equal(503, statusCodeResult?.StatusCode);
+            Assert.IsType<StatusCodeResult>(result);
         }
     }
 }

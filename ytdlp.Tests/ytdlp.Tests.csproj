@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../ytdlp.Api/ytdlp.Api.csproj" />
     <ProjectReference Include="../ytdlp.Services/ytdlp.Services.csproj" />
   </ItemGroup>
 
