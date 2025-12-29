@@ -64,9 +64,9 @@ USER yt-dlp
 # Expose port
 EXPOSE 8080
 
-# Health check with proper retry logic
+# Health check with proper retry logic - uses readiness probe endpoint
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD curl -f http://localhost:8080/api/healthcheck/ready || exit 1
 
 # Use tini as init process to handle signals correctly
 ENTRYPOINT ["/sbin/tini", "--"]
