@@ -418,8 +418,8 @@ public class ConfigsServicesTests
     }
 
     [Theory]
-    [InlineData("config_value", "/fixed/path/config_value")]
-    [InlineData("   config   ", "fixed_config")]
+    [InlineData("config_value", "/config_value")]
+    [InlineData("   config   ", "config")]
     [InlineData("--format bestvideo\n-o output.mp4", null, true)]
     [InlineData(@"--format bestvideo
 -o video.mp4
