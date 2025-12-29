@@ -17,10 +17,19 @@ public class ConfigsServices(
     private readonly string archiveFolder = paths.Value.Archive;
     private readonly IFileSystem _fileSystem = fileSystem;
     private readonly IPathParserService pathParser = pathParserService;
+    /// <summary>
+    /// gets absolute path to a configfile
+    /// </summary>
+    /// <param name="configName">name of the configfile</param>
+    /// <returns>complete path: "{configFolder}{configName}.conf"</returns>
     public string GetWholeConfigPath(string configName)
     {
         return $"{configFolder}{configName}.conf";
     }
+    /// <summary>
+    /// Gets all config names in the configFolder
+    /// </summary>
+    /// <returns>List of names of configfiles</returns>
     public List<string> GetAllConfigNames()
     {
         var files = _fileSystem.Directory.GetFiles(configFolder, "*.conf");
@@ -35,6 +44,11 @@ public class ConfigsServices(
 
         return configNames;
     }
+    /// <summary>
+    /// gets one configfile by name
+    /// </summary>
+    /// <param name="name"></param>
+    /// <returns>content of the file</returns>
     public Result<string> GetConfigContentByName(string name)
     {
         string path = GetWholeConfigPath(name);
@@ -58,6 +72,12 @@ public class ConfigsServices(
         }
         else return Result.Fail("File already exists");
     }
+    /// <summary>
+    /// creates a new configfile and checks, whether a file with that name already exists
+    /// </summary>
+    /// <param name="name"></param>
+    /// <param name="configContent"></param>
+    /// <returns>Result with success/failure message</returns>
     public async Task<Result<string>> CreateNewConfigAsync(string name, string configContent)
     {
         string newPath = GetWholeConfigPath(name);
