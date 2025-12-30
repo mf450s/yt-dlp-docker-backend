@@ -16,18 +16,26 @@ builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "yt-dlp Download API",
+        Version = "v1",
+        Description = "API for downloading media using yt-dlp with custom configurations"
+    });
+});
 builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins",
-        builder =>
+        policy =>
         {
-            builder.WithOrigins("*")
-                   .AllowAnyHeader()
-                   .AllowAnyMethod();
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         });
 });
 
@@ -60,15 +68,16 @@ builder.Services.Configure<PathConfiguration>(options =>
 
 var app = builder.Build();
 
+// Enable Swagger for all environments (not just Development)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "yt-dlp API v1");
+    c.RoutePrefix = "swagger"; // Access at /swagger
+});
+
 // Add custom logging middleware early in the pipeline
 app.UseMiddleware<LoggingMiddleware>();
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
 
 app.UseCors("AllowAllOrigins");
 
