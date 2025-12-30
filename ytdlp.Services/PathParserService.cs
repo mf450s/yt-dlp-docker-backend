@@ -6,7 +6,6 @@ namespace ytdlp.Services;
 
 public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserService
 {
-    private readonly string _configFolder = paths.Value.Config;
     private readonly string _downloadFolder = paths.Value.Downloads;
     private readonly string _archiveFolder = paths.Value.Archive;
     private readonly string _cookiesFolder = paths.Value.Cookies;
@@ -33,22 +32,13 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
             return FixPath(trimmed, _archiveFolder);
         }
 
-        // Check for --cookies (NEW)
-        if (trimmed.StartsWith("--cookies "))
+        // Check for --cookies
+        if (trimmed.StartsWith("--cookies") && !trimmed.StartsWith("--cookies-"))
         {
-            return FixPath(trimmed, _cookiesFolder);
+            return FixPath(trimmed, _cookiesFolder + "/");
         }
 
         return line;
-    }
-
-    /// <summary>
-    /// Gets the cookies folder path from the PathConfiguration.
-    /// </summary>
-    /// <returns>The full path to the cookies folder.</returns>
-    public string GetCookiesFolderPath()
-    {
-        return _cookiesFolder;
     }
 
     /// <summary>
