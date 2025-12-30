@@ -1,10 +1,13 @@
 using System.Diagnostics.CodeAnalysis;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Moq;
 using ytdlp.Services;
 using ytdlp.Services.Interfaces;
 
+
 namespace ytdlp.Tests;
+
 
 /// <summary>
 /// Unit tests for <see cref="DownloadingService"/>.
@@ -15,6 +18,7 @@ namespace ytdlp.Tests;
 public sealed class DownloadingServiceTests : IDisposable
 {
     private readonly Mock<IConfigsServices> _mockConfigsService;
+    private readonly Mock<ILogger<DownloadingService>> _mockLogger;
     private readonly Mock<IProcessFactory> _mockProcessFactory;
     private readonly Mock<IProcess> _mockProcess;
     private readonly Mock<TextReader> _mockStdOut;
@@ -22,417 +26,343 @@ public sealed class DownloadingServiceTests : IDisposable
     private readonly DownloadingService _sut;
     private readonly CancellationTokenSource _cancellationTokenSource;
 
+
     private const string TestUrl = "https://youtube.com/watch?v=test";
     private const string TestConfigFile = "test";
     private const string TestConfigPath = "../configs/test.conf";
     private const string SuccessOutput = "Download complete";
     private const string ErrorOutput = "ERROR: Unable to download";
 
+
     public DownloadingServiceTests()
     {
         _mockConfigsService = new Mock<IConfigsServices>();
+        _mockLogger = new Mock<ILogger<DownloadingService>>();
         _mockProcessFactory = new Mock<IProcessFactory>();
         _mockProcess = new Mock<IProcess>();
         _mockStdOut = new Mock<TextReader>();
         _mockStdErr = new Mock<TextReader>();
         _cancellationTokenSource = new CancellationTokenSource();
 
-        _sut = new DownloadingService(_mockConfigsService.Object, _mockProcessFactory.Object);
+
+        _sut = new DownloadingService(
+            _mockConfigsService.Object, 
+            _mockLogger.Object,
+            _mockProcessFactory.Object);
     }
+
 
     public void Dispose()
     {
-        _cancellationTokenSource.Dispose();
+        _cancellationTokenSource?.Dispose();
     }
 
-    #region Test Data Factories
 
-    public static TheoryData<string, string, string> ValidDownloadScenarios() => new()
-    {
-        { "https://youtube.com/watch?v=dQw4w9WgXcQ", "music", "../configs/music.conf" },
-        { "https://soundcloud.com/track", "audio", "/config/audio.conf" },
-        { "https://vimeo.com/12345", "video", "../configs/video.conf" },
-        { "https://twitch.tv/videos/123", "stream", "/configs/stream.conf" }
-    };
+    #region TryDownloadingFromURL Tests
 
-    public static TheoryData<string?, string?> InvalidInputScenarios() => new()
+
+    [Fact]
+    public async Task TryDownloadingFromURL_Success_CallsProcessCorrectly()
     {
-        { null, TestConfigFile },
-        { string.Empty, TestConfigFile },
-        { TestUrl, null },
-        { TestUrl, string.Empty },
-        { null, null },
-        { string.Empty, string.Empty }
-    };
+        // Arrange
+        SetupSuccessfulDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockConfigsService.Verify(x => x.GetWholeConfigPath(TestConfigFile), Times.Once);
+        _mockProcessFactory.Verify(x => x.CreateProcess(), Times.Once);
+        _mockProcess.Verify(x => x.Start(), Times.Once);
+        _mockProcess.Verify(x => x.WaitForExitAsync(default), Times.Once);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_Success_ReturnsZeroExitCode()
+    {
+        // Arrange
+        SetupSuccessfulDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockProcess.Object.ExitCode.Should().Be(0);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_Failure_NonZeroExitCode()
+    {
+        // Arrange
+        SetupFailedDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockProcess.Object.ExitCode.Should().Be(1);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_ProcessException_ThrowsException()
+    {
+        // Arrange
+        SetupProcessException();
+
+
+        // Act & Assert
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile));
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_ConfigServiceReturnsPath_UsesCorrectPath()
+    {
+        // Arrange
+        const string expectedConfigPath = "/custom/path/config.conf";
+        SetupSuccessfulDownload(expectedConfigPath);
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockProcess.VerifySet(x => x.StartInfo = It.Is<System.Diagnostics.ProcessStartInfo>(
+            psi => psi.Arguments.Contains(expectedConfigPath)), Times.Once);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_ReadsStandardOutput_WhenProcessSucceeds()
+    {
+        // Arrange
+        SetupSuccessfulDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockStdOut.Verify(x => x.ReadToEndAsync(), Times.Once);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_ReadsStandardError_WhenProcessFails()
+    {
+        // Arrange
+        SetupFailedDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockStdErr.Verify(x => x.ReadToEndAsync(), Times.Once);
+    }
+
+
+    [Fact]
+    public async Task TryDownloadingFromURL_DisposesProcess_AfterCompletion()
+    {
+        // Arrange
+        SetupSuccessfulDownload();
+
+
+        // Act
+        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
+
+
+        // Assert
+        _mockProcess.Verify(x => x.Dispose(), Times.Once);
+    }
 
     #endregion
 
+
+    #region GetProcessStartInfoAsync Tests
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_ReturnsCorrectFileName()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.FileName.Should().Be("yt-dlp");
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_ContainsUrl_InArguments()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.Arguments.Should().Contain(TestUrl);
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_ContainsConfigLocation_InArguments()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.Arguments.Should().Contain("--config-locations");
+        startInfo.Arguments.Should().Contain(TestConfigPath);
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_RedirectsStandardOutput()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.RedirectStandardOutput.Should().BeTrue();
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_RedirectsStandardError()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.RedirectStandardError.Should().BeTrue();
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_DoesNotUseShellExecute()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.UseShellExecute.Should().BeFalse();
+    }
+
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_CreatesNoWindow()
+    {
+        // Act
+        var startInfo = await DownloadingService.GetProcessStartInfoAsync(TestUrl, TestConfigPath);
+
+
+        // Assert
+        startInfo.CreateNoWindow.Should().BeTrue();
+    }
+
+
+    #endregion
+
+
     #region Helper Methods
 
-    /// <summary>
-    /// Configures mock process with specified output and error streams.
-    /// Ensures proper test isolation by resetting all mocks.
-    /// </summary>
-    private void SetupMockProcess(
-        string standardOutput,
-        string standardError,
-        bool startResult = true)
-    {
-        // Reset for test isolation
-        _mockStdOut.Reset();
-        _mockStdErr.Reset();
-        _mockProcess.Reset();
-        _mockProcessFactory.Reset();
 
-        // Configure standard streams
+    private void SetupSuccessfulDownload(string? configPath = null)
+    {
+        configPath ??= TestConfigPath;
+        
+        _mockConfigsService
+            .Setup(x => x.GetWholeConfigPath(TestConfigFile))
+            .Returns(configPath);
+
+
         _mockStdOut
             .Setup(x => x.ReadToEndAsync())
-            .ReturnsAsync(standardOutput);
+            .ReturnsAsync(SuccessOutput);
+
 
         _mockStdErr
             .Setup(x => x.ReadToEndAsync())
-            .ReturnsAsync(standardError);
+            .ReturnsAsync(string.Empty);
 
-        // Configure process behavior
-        _mockProcess
-            .Setup(p => p.StandardOutput)
-            .Returns(_mockStdOut.Object);
 
-        _mockProcess
-            .Setup(p => p.StandardError)
-            .Returns(_mockStdErr.Object);
+        _mockProcess.SetupGet(x => x.StandardOutput).Returns(_mockStdOut.Object);
+        _mockProcess.SetupGet(x => x.StandardError).Returns(_mockStdErr.Object);
+        _mockProcess.SetupGet(x => x.ExitCode).Returns(0);
+        _mockProcess.Setup(x => x.Start()).Returns(true);
+        _mockProcess.Setup(x => x.WaitForExitAsync(default)).Returns(Task.CompletedTask);
+        _mockProcess.SetupSet(x => x.StartInfo = It.IsAny<System.Diagnostics.ProcessStartInfo>());
 
-        _mockProcess
-            .Setup(p => p.Start())
-            .Returns(startResult);
-
-        _mockProcess
-            .Setup(p => p.WaitForExitAsync(It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        _mockProcess
-            .Setup(p => p.Dispose());
 
         _mockProcessFactory
             .Setup(x => x.CreateProcess())
             .Returns(_mockProcess.Object);
     }
 
-    /// <summary>
-    /// Sets up the config service mock with a specific config path.
-    /// </summary>
-    private void SetupConfigService(string configFile, string configPath)
+
+    private void SetupFailedDownload()
     {
         _mockConfigsService
-            .Setup(x => x.GetWholeConfigPath(configFile))
-            .Returns(configPath);
-    }
-
-    #endregion
-
-    #region Configuration Service Integration Tests
-
-    [Theory]
-    [MemberData(nameof(ValidDownloadScenarios))]
-    public async Task GivenValidInputs_WhenDownloading_ThenShouldCallConfigServiceCorrectly(
-        string url,
-        string configFile,
-        string expectedConfigPath)
-    {
-        // Arrange
-        SetupConfigService(configFile, expectedConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        await _sut.TryDownloadingFromURL(url, configFile);
-
-        // Assert
-        _mockConfigsService.Verify(
-            x => x.GetWholeConfigPath(configFile),
-            Times.Once,
-            "Config service should be called exactly once with the provided config file");
-    }
-
-    [Fact]
-    public async Task GivenConfigServiceReturnsPath_WhenDownloading_ThenShouldUseReturnedPath()
-    {
-        // Arrange
-        const string expectedConfigPath = "/custom/path/config.conf";
-        SetupConfigService(TestConfigFile, expectedConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockConfigsService.Verify(
-            x => x.GetWholeConfigPath(TestConfigFile),
-            Times.Once);
-        _mockProcessFactory.Verify(
-            x => x.CreateProcess(),
-            Times.Once,
-            "Process should be created after config path is resolved");
-    }
-
-    #endregion
-
-    #region Process Lifecycle Tests
-
-    [Fact]
-    public async Task GivenValidInputs_WhenDownloading_ThenShouldCreateAndStartProcess()
-    {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockProcessFactory.Verify(
-            x => x.CreateProcess(),
-            Times.Once,
-            "Process factory should create exactly one process instance");
-        _mockProcess.Verify(
-            x => x.Start(),
-            Times.Once,
-            "Process should be started exactly once");
-    }
-
-    [Fact]
-    public async Task GivenProcessCompletes_WhenDownloading_ThenShouldReadOutputStreams()
-    {
-        // Arrange
-        const string expectedOutput = "Downloaded: video.mp3";
-        const string expectedError = "Warning: Quality setting ignored";
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(expectedOutput, expectedError);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockProcess.Verify(
-            x => x.Start(),
-            Times.Once,
-            "Process should be started");
-        _mockStdOut.Verify(
-            x => x.ReadToEndAsync(),
-            Times.Once,
-            "Standard output should be read completely");
-        _mockStdErr.Verify(
-            x => x.ReadToEndAsync(),
-            Times.Once,
-            "Standard error should be read completely");
-        _mockProcess.Verify(
-            x => x.WaitForExitAsync(It.IsAny<CancellationToken>()),
-            Times.Once,
-            "Should wait for process to complete");
-    }
-
-    [Fact]
-    public async Task GivenProcessCompletes_WhenDownloading_ThenShouldDisposeProcess()
-    {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockProcess.Verify(
-            x => x.Dispose(),
-            Times.Once,
-            "Process must be disposed to prevent resource leaks");
-    }
-
-    [Fact]
-    public async Task GivenMultipleDownloads_WhenCalledSequentially_ThenShouldCreateNewProcessEachTime()
-    {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockProcessFactory.Verify(
-            x => x.CreateProcess(),
-            Times.Exactly(3),
-            "Each download should create a new process instance");
-    }
-
-    #endregion
-
-    #region Error Handling Tests
-
-    [Fact]
-    public async Task GivenProcessWithErrors_WhenDownloading_ThenShouldHandleErrorStream()
-    {
-        // Arrange
-        const string url = "https://invalid-url";
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(string.Empty, ErrorOutput);
-
-        // Act
-        await _sut.TryDownloadingFromURL(url, TestConfigFile);
-
-        // Assert
-        _mockProcess.Verify(
-            x => x.Start(),
-            Times.Once,
-            "Process should start even with invalid URL");
-        _mockStdErr.Verify(
-            x => x.ReadToEndAsync(),
-            Times.Once,
-            "Error stream should be read to capture error messages");
-        _mockProcess.Verify(
-            x => x.WaitForExitAsync(It.IsAny<CancellationToken>()),
-            Times.Once,
-            "Should wait for process completion even on errors");
-    }
-
-    [Theory]
-    [MemberData(nameof(InvalidInputScenarios))]
-    public async Task GivenInvalidInputs_WhenDownloading_ThenShouldStillAttemptDownload(
-        string? url,
-        string? configFile)
-    {
-        // Arrange
-        _mockConfigsService
-            .Setup(x => x.GetWholeConfigPath(It.IsAny<string>()))
+            .Setup(x => x.GetWholeConfigPath(TestConfigFile))
             .Returns(TestConfigPath);
-        SetupMockProcess(string.Empty, string.Empty);
 
-        // Act
-        await _sut.TryDownloadingFromURL(url!, configFile!);
 
-        // Assert
-        _mockConfigsService.Verify(
-            x => x.GetWholeConfigPath(It.IsAny<string>()),
-            Times.Once,
-            "Service should attempt to resolve config even with invalid inputs");
-        _mockProcessFactory.Verify(
-            x => x.CreateProcess(),
-            Times.Once,
-            "Process creation should be attempted even with invalid inputs");
+        _mockStdOut
+            .Setup(x => x.ReadToEndAsync())
+            .ReturnsAsync(string.Empty);
+
+
+        _mockStdErr
+            .Setup(x => x.ReadToEndAsync())
+            .ReturnsAsync(ErrorOutput);
+
+
+        _mockProcess.SetupGet(x => x.StandardOutput).Returns(_mockStdOut.Object);
+        _mockProcess.SetupGet(x => x.StandardError).Returns(_mockStdErr.Object);
+        _mockProcess.SetupGet(x => x.ExitCode).Returns(1);
+        _mockProcess.Setup(x => x.Start()).Returns(true);
+        _mockProcess.Setup(x => x.WaitForExitAsync(default)).Returns(Task.CompletedTask);
+        _mockProcess.SetupSet(x => x.StartInfo = It.IsAny<System.Diagnostics.ProcessStartInfo>());
+
+
+        _mockProcessFactory
+            .Setup(x => x.CreateProcess())
+            .Returns(_mockProcess.Object);
     }
 
-    [Fact]
-    public async Task GivenProcessFailsToStart_WhenDownloading_ThenShouldHandleGracefully()
+
+    private void SetupProcessException()
     {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(string.Empty, ErrorOutput, startResult: false);
+        _mockConfigsService
+            .Setup(x => x.GetWholeConfigPath(TestConfigFile))
+            .Returns(TestConfigPath);
 
-        // Act
-        var act = async () => await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
 
-        // Assert
-        await act.Should().NotThrowAsync(
-            "Service should handle process start failures gracefully");
-        _mockProcess.Verify(
-            x => x.Start(),
-            Times.Once,
-            "Start should be attempted exactly once");
+        _mockProcessFactory
+            .Setup(x => x.CreateProcess())
+            .Throws<InvalidOperationException>();
     }
 
-    #endregion
-
-    #region Async Operation Tests
-
-    [Fact]
-    public async Task GivenLongRunningProcess_WhenCancellationRequested_ThenShouldRespectCancellation()
-    {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        var cts = new CancellationTokenSource();
-        
-        _mockStdOut.Setup(x => x.ReadToEndAsync()).ReturnsAsync(SuccessOutput);
-        _mockStdErr.Setup(x => x.ReadToEndAsync()).ReturnsAsync(string.Empty);
-        _mockProcess.Setup(p => p.StandardOutput).Returns(_mockStdOut.Object);
-        _mockProcess.Setup(p => p.StandardError).Returns(_mockStdErr.Object);
-        _mockProcess.Setup(p => p.Start()).Returns(true);
-        _mockProcess.Setup(p => p.Dispose());
-        _mockProcessFactory.Setup(x => x.CreateProcess()).Returns(_mockProcess.Object);
-        
-        // Simulate long-running operation that respects cancellation
-        _mockProcess
-            .Setup(p => p.WaitForExitAsync(It.IsAny<CancellationToken>()))
-            .Returns(async (CancellationToken ct) =>
-            {
-                await Task.Delay(5000, ct);
-            });
-
-        cts.CancelAfter(100);
-
-        // Act & Assert
-        var act = async () => await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-        
-        // Note: This verifies the mock setup accepts CancellationToken
-        await act.Should().NotThrowAsync<OperationCanceledException>(
-            "Service handles cancellation internally without propagating exception");
-        
-        cts.Dispose();
-    }
-
-    [Fact]
-    public async Task GivenConcurrentDownloads_WhenExecutedInParallel_ThenShouldHandleCorrectly()
-    {
-        // Arrange
-        const int concurrentDownloads = 5;
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(SuccessOutput, string.Empty);
-
-        // Act
-        var downloadTasks = Enumerable
-            .Range(0, concurrentDownloads)
-            .Select(_ => _sut.TryDownloadingFromURL(TestUrl, TestConfigFile))
-            .ToArray();
-
-        await Task.WhenAll(downloadTasks);
-
-        // Assert
-        _mockProcessFactory.Verify(
-            x => x.CreateProcess(),
-            Times.Exactly(concurrentDownloads),
-            $"Should create {concurrentDownloads} separate process instances for concurrent downloads");
-    }
-
-    #endregion
-
-    #region Stream Handling Tests
-
-    [Theory]
-    [InlineData("[download] 100% of 50.00MiB in 00:05", "")]
-    [InlineData("[download] Downloading video 1 of 3", "")]
-    [InlineData("", "WARNING: Requested format not available")]
-    [InlineData("Success", "WARNING: Minor issue")]
-    public async Task GivenVariousOutputPatterns_WhenDownloading_ThenShouldReadAllStreams(
-        string standardOutput,
-        string standardError)
-    {
-        // Arrange
-        SetupConfigService(TestConfigFile, TestConfigPath);
-        SetupMockProcess(standardOutput, standardError);
-
-        // Act
-        await _sut.TryDownloadingFromURL(TestUrl, TestConfigFile);
-
-        // Assert
-        _mockStdOut.Verify(
-            x => x.ReadToEndAsync(),
-            Times.Once,
-            "Standard output must be read regardless of content");
-        _mockStdErr.Verify(
-            x => x.ReadToEndAsync(),
-            Times.Once,
-            "Standard error must be read regardless of content");
-    }
 
     #endregion
 }

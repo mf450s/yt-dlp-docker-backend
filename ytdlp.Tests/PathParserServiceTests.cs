@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using ytdlp.Services;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
+using Moq;
 using ytdlp.Configs;
 
 namespace ytdlp.Tests.Services;
@@ -18,7 +20,9 @@ public class PathParserServiceTests
             ? Options.Create(pathConfiguration)
             : Options.Create(paths);
 
-        return new PathParserService(iOptionsPathConfig);
+        var loggerMock = new Mock<ILogger<PathParserService>>();
+        
+        return new PathParserService(iOptionsPathConfig, loggerMock.Object);
     }
 
     private readonly PathConfiguration paths = new()

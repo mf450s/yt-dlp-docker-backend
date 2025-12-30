@@ -1,14 +1,20 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using ytdlp.Configs;
 using ytdlp.Services.Interfaces;
+using ytdlp.Services.Logging;
 
 namespace ytdlp.Services;
 
-public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserService
+public class PathParserService(
+    IOptions<PathConfiguration> paths,
+    ILogger<PathParserService> logger
+    ) : IPathParserService
 {
     private readonly string _downloadFolder = paths.Value.Downloads;
     private readonly string _archiveFolder = paths.Value.Archive;
     private readonly string _cookiesFolder = paths.Value.Cookies;
+    private readonly ILogger<PathParserService> _logger = logger;
 
     /// <summary>
     /// prepends complete paths to yt-dlp paths/download/archive/cookies options.
@@ -23,19 +29,28 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
         // Check for -o or --output
         if (trimmed.StartsWith("-o ") || trimmed.StartsWith("--output "))
         {
-            return FixPath(trimmed, _downloadFolder);
+            _logger.LogDebug("📁 Fixing output path: {Line}", trimmed);
+            string fixedPath = FixPath(trimmed, _downloadFolder);
+            _logger.LogPathFixed(trimmed, fixedPath);
+            return fixedPath;
         }
 
         // Check for --download-archive
         if (trimmed.StartsWith("--download-archive"))
         {
-            return FixPath(trimmed, _archiveFolder);
+            _logger.LogDebug("📑 Fixing archive path: {Line}", trimmed);
+            string fixedPath = FixPath(trimmed, _archiveFolder);
+            _logger.LogPathFixed(trimmed, fixedPath);
+            return fixedPath;
         }
 
         // Check for --cookies
         if (trimmed.StartsWith("--cookies") && !trimmed.StartsWith("--cookies-"))
         {
-            return FixPath(trimmed, _cookiesFolder + "/");
+            _logger.LogDebug("🍪 Fixing cookies path: {Line}", trimmed);
+            string fixedPath = FixPath(trimmed, _cookiesFolder + "/");
+            _logger.LogPathFixed(trimmed, fixedPath);
+            return fixedPath;
         }
 
         return line;
@@ -52,7 +67,10 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
         string[] parts = line.Split([' '], 2);
 
         if (parts.Length != 2)
+        {
+            _logger.LogWarning("⚠️ Invalid path format, expected 2 parts: {Line}", line);
             return line;
+        }
 
         string template = parts[1].Trim();
 
@@ -70,7 +88,9 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
             if (template.StartsWith("/"))
                 template = template[1..];
             template = $"{folder}{template}";
+            _logger.LogDebug("📖 Prepended folder {Folder} to path: {Template}", folder, template);
         }
+        
         return $"{parts[0]} \"{template}\"";
     }
 }

@@ -2,8 +2,17 @@ using ytdlp.Services.Interfaces;
 using ytdlp.Services;
 using System.IO.Abstractions;
 using ytdlp.Configs;
+using ytdlp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Logging with structured format
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("ytdlp.Services", LogLevel.Debug);
+builder.Logging.AddFilter("ytdlp.Api", LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
@@ -50,6 +59,9 @@ builder.Services.Configure<PathConfiguration>(options =>
 });
 
 var app = builder.Build();
+
+// Add custom logging middleware early in the pipeline
+app.UseMiddleware<LoggingMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

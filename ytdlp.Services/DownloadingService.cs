@@ -1,38 +1,67 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using ytdlp.Services.Interfaces;
+using ytdlp.Services.Logging;
 
 namespace ytdlp.Services
 {
     public class DownloadingService(
-        IConfigsServices _configsServices,
-        IProcessFactory? _processFactory = null
+        IConfigsServices configsServices,
+        ILogger<DownloadingService> logger,
+        IProcessFactory? processFactory = null
         ) : IDownloadingService
     {
-        private readonly IConfigsServices configsService = _configsServices;
-        private readonly IProcessFactory processFactory = _processFactory ?? new ProcessFactory();
+        private readonly IConfigsServices _configsServices = configsServices;
+        private readonly ILogger<DownloadingService> _logger = logger;
+        private readonly IProcessFactory _processFactory = processFactory ?? new ProcessFactory();
 
         public async Task TryDownloadingFromURL(string url, string configFile)
         {
-            string wholeConfigPath = configsService.GetWholeConfigPath(configFile);
-            ProcessStartInfo startInfo = await GetProcessStartInfoAsync(url, wholeConfigPath);
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogDownloadStarted(url, configFile);
             
-            // Start the process
-            using IProcess process = processFactory.CreateProcess();
-            process.StartInfo = startInfo;
-            process.Start();
+            try
+            {
+                string wholeConfigPath = _configsServices.GetWholeConfigPath(configFile);
+                _logger.LogConfigPathResolved(configFile, wholeConfigPath);
+                
+                ProcessStartInfo startInfo = await GetProcessStartInfoAsync(url, wholeConfigPath);
+                
+                using IProcess process = _processFactory.CreateProcess();
+                process.StartInfo = startInfo;
+                
+                _logger.LogProcessStarted("yt-dlp", startInfo.Arguments);
+                process.Start();
 
-            // Read the output and error streams
-            string output = await process.StandardOutput.ReadToEndAsync();
-            string error = await process.StandardError.ReadToEndAsync();
+                string output = await process.StandardOutput.ReadToEndAsync();
+                string error = await process.StandardError.ReadToEndAsync();
 
-            // Wait for the process to exit
-            await process.WaitForExitAsync();
+                await process.WaitForExitAsync();
 
-            // Log or handle the output and errors
-            Console.WriteLine("Output:");
-            Console.WriteLine(output);
-            Console.WriteLine("Errors:");
-            Console.WriteLine(error);
+                stopwatch.Stop();
+
+                if (process.ExitCode == 0)
+                {
+                    _logger.LogDownloadCompleted(url, stopwatch.Elapsed);
+                    if (!string.IsNullOrWhiteSpace(output))
+                    {
+                        _logger.LogDebug("📁 yt-dlp output: {Output}", output.Trim());
+                    }
+                }
+                else
+                {
+                    _logger.LogDownloadFailed(url, process.ExitCode, error);
+                }
+            }
+            catch (Exception ex)
+            {
+                stopwatch.Stop();
+                _logger.LogError(
+                    ex, 
+                    "🚨 Exception during download | URL: {Url} | Config: {ConfigFile} | Duration: {DurationMs}ms", 
+                    url, configFile, (long)stopwatch.ElapsedMilliseconds);
+                throw;
+            }
         }
 
         /// <summary>
@@ -43,14 +72,12 @@ namespace ytdlp.Services
         /// <returns>A <see cref="ProcessStartInfo"/> object configured to run yt-dlp with the provided URL and configuration.</returns>
         internal static async Task<ProcessStartInfo> GetProcessStartInfoAsync(string url, string wholeConfigPath)
         {
-            // Construct the command and arguments for yt-dlp
             string[] args =
             [
                 url,
                 $"--config-locations", wholeConfigPath
             ];
 
-            // Create a process start info object
             ProcessStartInfo startInfo = new()
             {
                 FileName = "yt-dlp",
