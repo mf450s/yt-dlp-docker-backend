@@ -1,0 +1,60 @@
+using System.Diagnostics.CodeAnalysis;
+using ytdlp.Services;
+using Microsoft.Extensions.Options;
+using ytdlp.Configs;
+
+namespace ytdlp.Tests.Services;
+
+[ExcludeFromCodeCoverage]
+public class PathParserServiceTests
+{
+    #region Setup
+    public PathParserService GetConfigsServices(
+        IOptions<PathConfiguration>? iOptionsPathConfig = null,
+        PathConfiguration? pathConfiguration = null
+    )
+    {
+        iOptionsPathConfig ??= pathConfiguration != null
+            ? Options.Create(pathConfiguration)
+            : Options.Create(paths);
+
+        return new PathParserService(iOptionsPathConfig);
+    }
+
+    private readonly PathConfiguration paths = new()
+    {
+        Downloads = "/app/downloads/",
+        Archive = "/app/archive/"
+    };
+    #endregion
+
+    [Theory]
+    // Download-Pfad Tests
+    [InlineData("-o /app/downloads/video", "-o \"/app/downloads/video\"")]
+    [InlineData("-o video/", "-o \"/app/downloads/video/\"")]
+    [InlineData("-o /video/", "-o \"/app/downloads/video/\"")]
+    [InlineData("-o video", "-o \"/app/downloads/video\"")]
+    [InlineData("-o \"video xyz\"", "-o \"/app/downloads/video xyz\"")]
+    [InlineData("-o \"%(title)s.%(ext)s\"", "-o \"/app/downloads/%(title)s.%(ext)s\"")]
+    [InlineData("-o \" spaced \"", "-o \"/app/downloads/spaced\"")]
+    // Archive-Pfad Tests
+    [InlineData("--download-archive /app/archive/video.txt", "--download-archive \"/app/archive/video.txt\"")]
+    [InlineData("--download-archive video.txt", "--download-archive \"/app/archive/video.txt\"")]
+    [InlineData("--download-archive /video.txt", "--download-archive \"/app/archive/video.txt\"")]
+    [InlineData("--download-archive \"archive.txt\"", "--download-archive \"/app/archive/archive.txt\"")]
+    // Keine Änderungen nötig
+    [InlineData("--format bestvideo", "--format bestvideo")]
+    [InlineData("-f best", "-f best")]
+    [InlineData("# comment", "# comment")]
+    public void CheckAndFixPaths_ReturnsCorrectLine(string inputLine, string expectedOutputLine)
+    {
+        // Arrange
+        var service = GetConfigsServices();
+
+        // Act
+        string actualOutputLine = service.CheckAndFixPaths(inputLine);
+
+        // Assert
+        Assert.Equal(expectedOutputLine, actualOutputLine);
+    }
+}

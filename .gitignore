@@ -1,6 +1,8 @@
 obj/
 bin/
-ytdlp.Tests/
-.vscode/
 *.dll
 *.exe
+downloads/
+.vscode/
+.DS_Store
+docker-compose.yml

@@ -1,5 +1,8 @@
 using ytdlp.Services.Interfaces;
 using ytdlp.Services;
+using System.IO.Abstractions;
+using ytdlp.Configs;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -18,8 +21,18 @@ builder.Services.AddCors(options =>
         });
 });
 
-// Add DI for IDownloadingService
+// Add DI
 builder.Services.AddScoped<IDownloadingService, DownloadingService>();
+builder.Services.AddScoped<IConfigsServices, ConfigsServices>();
+builder.Services.AddSingleton<IFileSystem, FileSystem>();
+builder.Services.AddScoped<IPathParserService, PathParserService>();
+builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
+// builder.Services.AddScoped<IStartupConfigFixer, StartupConfigFixer>();
+
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(8080); // HTTP auf Port 8080
+});
 
 var app = builder.Build();
 
