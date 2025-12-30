@@ -24,7 +24,8 @@ public class PathParserServiceTests
     private readonly PathConfiguration paths = new()
     {
         Downloads = "/app/downloads/",
-        Archive = "/app/archive/"
+        Archive = "/app/archive/",
+        Cookies = "/app/cookies"
     };
     #endregion
 
@@ -42,10 +43,18 @@ public class PathParserServiceTests
     [InlineData("--download-archive video.txt", "--download-archive \"/app/archive/video.txt\"")]
     [InlineData("--download-archive /video.txt", "--download-archive \"/app/archive/video.txt\"")]
     [InlineData("--download-archive \"archive.txt\"", "--download-archive \"/app/archive/archive.txt\"")]
+    // Cookie-Pfad Tests
+    [InlineData("--cookies /app/cookies/cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies /cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies \"my cookies.txt\"", "--cookies \"/app/cookies/my cookies.txt\"")]
+    [InlineData("--cookies youtube-cookies.txt", "--cookies \"/app/cookies/youtube-cookies.txt\"")]
+    [InlineData("--cookies \"  cookies.txt  \"", "--cookies \"/app/cookies/cookies.txt\"")]
     // Keine Änderungen nötig
     [InlineData("--format bestvideo", "--format bestvideo")]
     [InlineData("-f best", "-f best")]
     [InlineData("# comment", "# comment")]
+    [InlineData("--cookies-from-browser chrome", "--cookies-from-browser chrome")]
     public void CheckAndFixPaths_ReturnsCorrectLine(string inputLine, string expectedOutputLine)
     {
         // Arrange
