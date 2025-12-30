@@ -130,10 +130,7 @@ public sealed class DownloadingServiceTests : IDisposable
     {
         // Arrange
         const string expectedConfigPath = "/custom/path/config.conf";
-        _mockConfigsService
-            .Setup(x => x.GetWholeConfigPath(TestConfigFile))
-            .Returns(expectedConfigPath);
-        SetupSuccessfulDownload();
+        SetupSuccessfulDownload(expectedConfigPath);
 
 
         // Act
@@ -290,11 +287,13 @@ public sealed class DownloadingServiceTests : IDisposable
     #region Helper Methods
 
 
-    private void SetupSuccessfulDownload()
+    private void SetupSuccessfulDownload(string? configPath = null)
     {
+        configPath ??= TestConfigPath;
+        
         _mockConfigsService
             .Setup(x => x.GetWholeConfigPath(TestConfigFile))
-            .Returns(TestConfigPath);
+            .Returns(configPath);
 
 
         _mockStdOut
