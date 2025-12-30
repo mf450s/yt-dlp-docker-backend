@@ -30,11 +30,11 @@ public sealed class DownloadingServiceTests : IDisposable
 
     public DownloadingServiceTests()
     {
-        _mockConfigsService = new Mock<IConfigsServices>(MockBehavior.Strict);
-        _mockProcessFactory = new Mock<IProcessFactory>(MockBehavior.Strict);
-        _mockProcess = new Mock<IProcess>(MockBehavior.Strict);
-        _mockStdOut = new Mock<TextReader>(MockBehavior.Strict);
-        _mockStdErr = new Mock<TextReader>(MockBehavior.Strict);
+        _mockConfigsService = new Mock<IConfigsServices>();
+        _mockProcessFactory = new Mock<IProcessFactory>();
+        _mockProcess = new Mock<IProcess>();
+        _mockStdOut = new Mock<TextReader>();
+        _mockStdErr = new Mock<TextReader>();
         _cancellationTokenSource = new CancellationTokenSource();
 
         _sut = new DownloadingService(_mockConfigsService.Object, _mockProcessFactory.Object);
