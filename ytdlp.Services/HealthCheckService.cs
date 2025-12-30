@@ -2,6 +2,8 @@ using ytdlp.Services.Interfaces;
 using ytdlp.Services.Logging;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using ytdlp.Configs;
 
 namespace ytdlp.Services
 {
@@ -21,11 +23,16 @@ namespace ytdlp.Services
     {
         private readonly ILogger<HealthCheckService> _logger;
         private readonly IDownloadingService _downloadingService;
+        private readonly string _downloadsPath;
 
-        public HealthCheckService(ILogger<HealthCheckService> logger, IDownloadingService downloadingService)
+        public HealthCheckService(
+            ILogger<HealthCheckService> logger, 
+            IDownloadingService downloadingService,
+            IOptions<PathConfiguration> pathConfiguration)
         {
             _logger = logger;
             _downloadingService = downloadingService;
+            _downloadsPath = pathConfiguration.Value.Downloads;
         }
 
         public async Task<HealthStatus> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -129,12 +136,16 @@ namespace ytdlp.Services
         {
             try
             {
-                _logger.LogDebug("🔍 Checking download directory writeability...");
+                _logger.LogDebug("🔍 Checking download directory writeability at: {Path}", _downloadsPath);
                 
-                var downloadDir = Path.Combine("/downloads", "test_health_check");
-                Directory.CreateDirectory(downloadDir);
+                // Ensure the downloads directory exists
+                if (!Directory.Exists(_downloadsPath))
+                {
+                    _logger.LogWarning("⚠️ Downloads directory does not exist: {Path}", _downloadsPath);
+                    return false;
+                }
 
-                var testFile = Path.Combine(downloadDir, ".health_check_test");
+                var testFile = Path.Combine(_downloadsPath, ".health_check_test");
                 File.WriteAllText(testFile, "health_check");
                 File.Delete(testFile);
 
@@ -143,7 +154,7 @@ namespace ytdlp.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🚨 Download directory is not writable");
+                _logger.LogError(ex, "🚨 Download directory is not writable at: {Path}", _downloadsPath);
                 return false;
             }
         }
