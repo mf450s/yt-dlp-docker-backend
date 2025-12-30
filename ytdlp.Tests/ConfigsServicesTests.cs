@@ -345,7 +345,7 @@ public class ConfigsServicesTests
         result.IsFailed.Should().BeTrue();
         result.Errors.Should().ContainSingle()
             .Which.Message.Should()
-            .Contain("doesnt exists")
+            .Contain("doesn't exist")
             .And.Contain("nonexistent");
         mockFileSystem.File.Exists($"{paths.Config}nonexistent.conf").Should().BeFalse();
     }
