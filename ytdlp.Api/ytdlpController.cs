@@ -7,16 +7,16 @@ namespace ytdlp.Api
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ytdlpController(IDownloadingService downloadingService, IConfigsServices configsServices, ICookiesService cookiesService) : ControllerBase
+    public class ytdlpController(IDownloadingService downloadingService, IConfigsServices configsServices) : ControllerBase
     {
         /// <summary>
-        /// Downloads content from a URL using a specified configuration and optional cookie file.
+        /// Downloads content from a URL using a specified configuration.
+        /// Cookie files should be specified within the config file using --cookies option.
         /// </summary>
         /// <param name="url">The URL to download from.</param>
         /// <param name="confName">The name of the configuration file to use.</param>
-        /// <param name="cookieName">Optional: The name of the cookie file to use for authentication.</param>
         [HttpPost("download")]
-        public async Task<IActionResult> Download([FromBody] string url, [FromQuery] string confName, [FromQuery] string? cookieName = null)
+        public async Task<IActionResult> Download([FromBody] string url, [FromQuery] string confName)
         {
             // Validate configuration file exists
             var configResult = configsServices.GetConfigContentByName(confName);
@@ -25,26 +25,10 @@ namespace ytdlp.Api
                 return BadRequest(new { error = $"Configuration '{confName}' not found." });
             }
 
-            // If cookie file is provided, validate it exists
-            if (!string.IsNullOrWhiteSpace(cookieName))
-            {
-                var cookieResult = cookiesService.GetCookieContentByName(cookieName);
-                if (cookieResult.IsFailed)
-                {
-                    return BadRequest(new { error = $"Cookie file '{cookieName}' not found." });
-                }
-            }
-
             try
             {
-                string? wholeCookiePath = null;
-                if (!string.IsNullOrWhiteSpace(cookieName))
-                {
-                    wholeCookiePath = cookiesService.GetWholeCookiePath(cookieName);
-                }
-
-                await downloadingService.TryDownloadingFromURL(url, confName, wholeCookiePath);
-                return Accepted(new { message = "Download started", url = url, config = confName, cookies = cookieName ?? "none" });
+                await downloadingService.TryDownloadingFromURL(url, confName);
+                return Accepted(new { message = "Download started", url = url, config = confName });
             }
             catch (Exception ex)
             {

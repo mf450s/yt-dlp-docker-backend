@@ -13,10 +13,10 @@ namespace ytdlp.Services
         private readonly IConfigsServices configsService = _configsServices;
         private readonly IProcessFactory processFactory = _processFactory ?? new ProcessFactory();
 
-        public async Task TryDownloadingFromURL(string url, string configFile, string? cookieFile = null)
+        public async Task TryDownloadingFromURL(string url, string configFile)
         {
             string wholeConfigPath = configsService.GetWholeConfigPath(configFile);
-            ProcessStartInfo startInfo = await GetProcessStartInfoAsync(url, wholeConfigPath, cookieFile);
+            ProcessStartInfo startInfo = await GetProcessStartInfoAsync(url, wholeConfigPath);
             
             // Start the process
             using IProcess process = processFactory.CreateProcess();
@@ -42,24 +42,15 @@ namespace ytdlp.Services
         /// </summary>
         /// <param name="url">The URL of the media to download.</param>
         /// <param name="wholeConfigPath">The path to the configuration file for yt-dlp.</param>
-        /// <param name="wholeCookiePath">Optional: The path to the cookie file for authentication.</param>
         /// <returns>A <see cref="ProcessStartInfo"/> object configured to run yt-dlp with the provided URL and configuration.</returns>
-        internal async Task<ProcessStartInfo> GetProcessStartInfoAsync(string url, string wholeConfigPath, string? wholeCookiePath = null)
+        internal static async Task<ProcessStartInfo> GetProcessStartInfoAsync(string url, string wholeConfigPath)
         {
             // Construct the command and arguments for yt-dlp
-            var args = new System.Collections.Generic.List<string>
-            {
+            string[] args =
+            [
                 url,
-                "--config-locations",
-                wholeConfigPath
-            };
-
-            // Add cookie file if provided
-            if (!string.IsNullOrWhiteSpace(wholeCookiePath))
-            {
-                args.Add("--cookies-from-browser");
-                args.Add(wholeCookiePath);
-            }
+                $"--config-locations", wholeConfigPath
+            ];
 
             // Create a process start info object
             ProcessStartInfo startInfo = new()
