@@ -12,7 +12,7 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
     private readonly string _cookiesFolder = paths.Value.Cookies;
 
     /// <summary>
-    /// prepends complete paths to yt-dlp paths/download/archive options.
+    /// prepends complete paths to yt-dlp paths/download/archive/cookies options.
     /// Gets paths from <PathConfiguration>
     /// </summary>
     /// <param name="line"></param>
@@ -27,10 +27,18 @@ public class PathParserService(IOptions<PathConfiguration> paths) : IPathParserS
             return FixPath(trimmed, _downloadFolder);
         }
 
+        // Check for --download-archive
         if (trimmed.StartsWith("--download-archive"))
         {
             return FixPath(trimmed, _archiveFolder);
         }
+
+        // Check for --cookies (NEW)
+        if (trimmed.StartsWith("--cookies "))
+        {
+            return FixPath(trimmed, _cookiesFolder);
+        }
+
         return line;
     }
 
