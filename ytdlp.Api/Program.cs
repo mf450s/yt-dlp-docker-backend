@@ -9,6 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddCors(options =>
 {
@@ -60,5 +61,6 @@ if (app.Environment.IsDevelopment())
 app.UseCors("AllowAllOrigins");
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();
