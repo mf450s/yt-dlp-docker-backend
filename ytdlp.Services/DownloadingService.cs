@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using ytdlp.Services.Interfaces;
+using ytdlp.Services.Logging;
 
 namespace ytdlp.Services
 {
@@ -16,19 +17,20 @@ namespace ytdlp.Services
 
         public async Task TryDownloadingFromURL(string url, string configFile)
         {
-            _logger.LogInformation("Starting download for URL: {Url} with config: {ConfigFile}", url, configFile);
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogDownloadStarted(url, configFile);
             
             try
             {
                 string wholeConfigPath = _configsServices.GetWholeConfigPath(configFile);
-                _logger.LogDebug("Resolved config path: {ConfigPath}", wholeConfigPath);
+                _logger.LogConfigPathResolved(configFile, wholeConfigPath);
                 
                 ProcessStartInfo startInfo = await GetProcessStartInfoAsync(url, wholeConfigPath);
                 
                 using IProcess process = _processFactory.CreateProcess();
                 process.StartInfo = startInfo;
                 
-                _logger.LogDebug("Starting yt-dlp process with arguments: {Arguments}", startInfo.Arguments);
+                _logger.LogProcessStarted("yt-dlp", startInfo.Arguments);
                 process.Start();
 
                 string output = await process.StandardOutput.ReadToEndAsync();
@@ -36,24 +38,28 @@ namespace ytdlp.Services
 
                 await process.WaitForExitAsync();
 
+                stopwatch.Stop();
+
                 if (process.ExitCode == 0)
                 {
-                    _logger.LogInformation("Download completed successfully for URL: {Url}", url);
+                    _logger.LogDownloadCompleted(url, stopwatch.Elapsed);
                     if (!string.IsNullOrWhiteSpace(output))
                     {
-                        _logger.LogDebug("yt-dlp output: {Output}", output.Trim());
+                        _logger.LogDebug("📁 yt-dlp output: {Output}", output.Trim());
                     }
                 }
                 else
                 {
-                    _logger.LogError("Download failed for URL: {Url} with exit code: {ExitCode}. Error: {Error}", 
-                        url, process.ExitCode, error);
+                    _logger.LogDownloadFailed(url, process.ExitCode, error);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Exception occurred while downloading from URL: {Url} with config: {ConfigFile}", 
-                    url, configFile);
+                stopwatch.Stop();
+                _logger.LogError(
+                    ex, 
+                    "🚨 Exception during download | URL: {Url} | Config: {ConfigFile} | Duration: {DurationMs}ms", 
+                    url, configFile, (long)stopwatch.ElapsedMilliseconds);
                 throw;
             }
         }
