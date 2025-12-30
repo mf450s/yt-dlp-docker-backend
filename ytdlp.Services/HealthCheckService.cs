@@ -1,4 +1,5 @@
 using ytdlp.Services.Interfaces;
+using ytdlp.Services.Logging;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
@@ -31,6 +32,7 @@ namespace ytdlp.Services
         {
             var status = new HealthStatus();
             var stopwatch = Stopwatch.StartNew();
+            _logger.LogHealthCheckStarted();
 
             try
             {
@@ -41,7 +43,7 @@ namespace ytdlp.Services
                 if (!ytdlpAvailable)
                 {
                     status.Status = "Unhealthy";
-                    _logger.LogWarning("yt-dlp is not available or not accessible");
+                    _logger.LogHealthCheckCompleted(false, "yt-dlp is not available or not accessible");
                 }
 
                 // 2. Check if downloads directory is writable
@@ -51,14 +53,15 @@ namespace ytdlp.Services
                 if (!downloadDirWritable)
                 {
                     status.Status = "Unhealthy";
-                    _logger.LogWarning("Downloads directory is not writable");
+                    _logger.LogHealthCheckCompleted(false, "Downloads directory is not writable");
                 }
 
                 stopwatch.Stop();
                 status.Details["response_time_ms"] = stopwatch.ElapsedMilliseconds;
                 status.Details["timestamp"] = DateTime.UtcNow;
 
-                _logger.LogInformation("Health check completed with status: {Status}", status.Status);
+                _logger.LogHealthCheckCompleted(status.Status == "Healthy");
+                _logger.LogOperationDuration("HealthCheck", stopwatch.Elapsed);
             }
             catch (Exception ex)
             {
@@ -67,7 +70,7 @@ namespace ytdlp.Services
                 status.Details["error"] = ex.Message;
                 status.Details["response_time_ms"] = stopwatch.ElapsedMilliseconds;
 
-                _logger.LogError(ex, "Health check failed");
+                _logger.LogError(ex, "🚨 Health check failed after {DurationMs}ms", stopwatch.ElapsedMilliseconds);
             }
 
             return status;
@@ -77,6 +80,8 @@ namespace ytdlp.Services
         {
             try
             {
+                _logger.LogDebug("🔍 Checking yt-dlp availability...");
+                
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "yt-dlp",
@@ -100,6 +105,7 @@ namespace ytdlp.Services
                     if (completedTask == versionTask && !string.IsNullOrEmpty(await versionTask))
                     {
                         process.Kill();
+                        _logger.LogInformation("✅ yt-dlp is available");
                         return true;
                     }
 
@@ -108,12 +114,13 @@ namespace ytdlp.Services
                         process.Kill();
                     }
 
+                    _logger.LogWarning("⚠️ yt-dlp check timed out or returned no output");
                     return false;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error checking yt-dlp availability");
+                _logger.LogError(ex, "🚨 Error checking yt-dlp availability");
                 return false;
             }
         }
@@ -122,6 +129,8 @@ namespace ytdlp.Services
         {
             try
             {
+                _logger.LogDebug("🔍 Checking download directory writeability...");
+                
                 var downloadDir = Path.Combine("/downloads", "test_health_check");
                 Directory.CreateDirectory(downloadDir);
 
@@ -129,11 +138,12 @@ namespace ytdlp.Services
                 File.WriteAllText(testFile, "health_check");
                 File.Delete(testFile);
 
+                _logger.LogInformation("✅ Download directory is writable");
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Download directory is not writable");
+                _logger.LogError(ex, "🚨 Download directory is not writable");
                 return false;
             }
         }
