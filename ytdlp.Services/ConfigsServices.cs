@@ -17,8 +17,6 @@ public class ConfigsServices(
     ) : IConfigsServices
 {
     private readonly string configFolder = paths.Value.Config.ToString();
-    private readonly string downloadFolder = paths.Value.Downloads;
-    private readonly string archiveFolder = paths.Value.Archive;
     private readonly IFileSystem _fileSystem = fileSystem;
     private readonly IPathParserService pathParser = pathParserService;
     private readonly ILogger<ConfigsServices> _logger = logger;
@@ -60,8 +58,8 @@ public class ConfigsServices(
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "🚨 Error retrieving config names from {ConfigFolder}", configFolder);
-            return new List<string>();
+            _logger.LogError(ex, "Error retrieving config names from {ConfigFolder}", configFolder);
+            return [];
         }
     }
 
@@ -72,7 +70,7 @@ public class ConfigsServices(
     /// <returns>content of the file</returns>
     public Result<string> GetConfigContentByName(string name)
     {
-        _logger.LogDebug("💯 Retrieving config content for: {ConfigName}", name);
+        _logger.LogDebug("Retrieving config content for: {ConfigName}", name);
         string path = GetWholeConfigPath(name);
         
         if (_fileSystem.File.Exists(path))
@@ -86,7 +84,7 @@ public class ConfigsServices(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🚨 Error reading config file: {ConfigName} at {Path}", name, path);
+                _logger.LogError(ex, "Error reading config file: {ConfigName} at {Path}", name, path);
                 return Result.Fail($"Error reading config file: {ex.Message}");
             }
         }
@@ -99,7 +97,7 @@ public class ConfigsServices(
 
     public Result<string> DeleteConfigByName(string name)
     {
-        _logger.LogInformation("🗑️ Attempting to delete config: {ConfigName}", name);
+        _logger.LogInformation("Attempting to delete config: {ConfigName}", name);
         string path = GetWholeConfigPath(name);
         
         if (_fileSystem.File.Exists(path))
@@ -112,7 +110,7 @@ public class ConfigsServices(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🚨 Error deleting config file: {ConfigName} at {Path}", name, path);
+                _logger.LogError(ex, "Error deleting config file: {ConfigName} at {Path}", name, path);
                 return Result.Fail($"Error deleting config file: {ex.Message}");
             }
         }
@@ -131,12 +129,12 @@ public class ConfigsServices(
     /// <returns>Result with success/failure message</returns>
     public async Task<Result<string>> CreateNewConfigAsync(string name, string configContent)
     {
-        _logger.LogInformation("✨ Creating new config: {ConfigName}", name);
+        _logger.LogInformation("Creating new config: {ConfigName}", name);
         string newPath = GetWholeConfigPath(name);
         
         if (_fileSystem.File.Exists(newPath))
         {
-            _logger.LogWarning("⚠️ Cannot create config - file already exists: {ConfigName}", name);
+            _logger.LogWarning("Cannot create config - file already exists: {ConfigName}", name);
             return Result.Fail($"File with name '{name}' already exists");
         }
         else
@@ -149,7 +147,7 @@ public class ConfigsServices(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🚨 Error creating config file: {ConfigName}", name);
+                _logger.LogError(ex, "Error creating config file: {ConfigName}", name);
                 return Result.Fail($"Error creating config file: {ex.Message}");
             }
         }
@@ -170,7 +168,7 @@ public class ConfigsServices(
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "🚨 Error updating config file: {ConfigName}", name);
+                _logger.LogError(ex, "Error updating config file: {ConfigName}", name);
                 return Result.Fail($"Error updating config file: {ex.Message}");
             }
         }
