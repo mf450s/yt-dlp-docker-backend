@@ -61,6 +61,9 @@ VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies/"]
 # Switch to non-root user for security
 USER yt-dlp
 
+# Set ASP Enviroment for appsettings.json
+ENV ASPNETCORE_ENVIRONMENT=Production
+
 # Expose port
 EXPOSE 8080
 
