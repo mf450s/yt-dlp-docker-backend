@@ -1,7 +1,6 @@
 using ytdlp.Services.Interfaces;
 using ytdlp.Services;
 using System.IO.Abstractions;
-using ytdlp.Configs;
 using ytdlp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,9 +50,6 @@ builder.WebHost.ConfigureKestrel(options =>
 {
     options.ListenAnyIP(8080); // HTTP auf Port 8080
 });
-
-// Configure Paths from appsettings
-builder.Services.Configure<PathConfiguration>(builder.Configuration.GetSection("Paths"));
 
 var app = builder.Build();
 
