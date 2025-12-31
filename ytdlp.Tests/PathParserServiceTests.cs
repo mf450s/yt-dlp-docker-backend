@@ -1,9 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using ytdlp.Services;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Moq;
-using ytdlp.Configs;
 
 namespace ytdlp.Tests.Services;
 
@@ -11,26 +10,21 @@ namespace ytdlp.Tests.Services;
 public class PathParserServiceTests
 {
     #region Setup
-    public PathParserService GetConfigsServices(
-        IOptions<PathConfiguration>? iOptionsPathConfig = null,
-        PathConfiguration? pathConfiguration = null
+    public PathParserService GetPathParserService(
+        string downloads = "/app/downloads/",
+        string archive = "/app/archive/",
+        string cookies = "/app/cookies"
     )
     {
-        iOptionsPathConfig ??= pathConfiguration != null
-            ? Options.Create(pathConfiguration)
-            : Options.Create(paths);
+        var configMock = new Mock<IConfiguration>();
+        configMock.Setup(c => c["Paths:Downloads"]).Returns(downloads);
+        configMock.Setup(c => c["Paths:Archive"]).Returns(archive);
+        configMock.Setup(c => c["Paths:Cookies"]).Returns(cookies);
 
         var loggerMock = new Mock<ILogger<PathParserService>>();
         
-        return new PathParserService(iOptionsPathConfig, loggerMock.Object);
+        return new PathParserService(configMock.Object, loggerMock.Object);
     }
-
-    private readonly PathConfiguration paths = new()
-    {
-        Downloads = "/app/downloads/",
-        Archive = "/app/archive/",
-        Cookies = "/app/cookies"
-    };
     #endregion
 
     [Theory]
@@ -62,7 +56,7 @@ public class PathParserServiceTests
     public void CheckAndFixPaths_ReturnsCorrectLine(string inputLine, string expectedOutputLine)
     {
         // Arrange
-        var service = GetConfigsServices();
+        var service = GetPathParserService();
 
         // Act
         string actualOutputLine = service.CheckAndFixPaths(inputLine);

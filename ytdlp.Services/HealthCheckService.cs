@@ -2,8 +2,7 @@ using ytdlp.Services.Interfaces;
 using ytdlp.Services.Logging;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using ytdlp.Configs;
+using Microsoft.Extensions.Configuration;
 
 namespace ytdlp.Services
 {
@@ -26,13 +25,13 @@ namespace ytdlp.Services
         private readonly string _downloadsPath;
 
         public HealthCheckService(
-            ILogger<HealthCheckService> logger, 
+            ILogger<HealthCheckService> logger,
             IDownloadingService downloadingService,
-            IOptions<PathConfiguration> pathConfiguration)
+            IConfiguration configuration)
         {
             _logger = logger;
             _downloadingService = downloadingService;
-            _downloadsPath = pathConfiguration.Value.Downloads;
+            _downloadsPath = configuration["Paths:Downloads"] ?? "/app/downloads";
         }
 
         public async Task<HealthStatus> CheckHealthAsync(CancellationToken cancellationToken = default)
@@ -88,7 +87,7 @@ namespace ytdlp.Services
             try
             {
                 _logger.LogDebug("🔍 Checking yt-dlp availability...");
-                
+
                 var processInfo = new ProcessStartInfo
                 {
                     FileName = "yt-dlp",
@@ -137,7 +136,7 @@ namespace ytdlp.Services
             try
             {
                 _logger.LogDebug("🔍 Checking download directory writeability at: {Path}", _downloadsPath);
-                
+
                 // Ensure the downloads directory exists
                 if (!Directory.Exists(_downloadsPath))
                 {

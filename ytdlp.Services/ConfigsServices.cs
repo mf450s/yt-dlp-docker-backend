@@ -1,9 +1,8 @@
 using ytdlp.Services.Interfaces;
 using System.IO.Abstractions;
 using FluentResults;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using ytdlp.Configs;
 using ytdlp.Services.Logging;
 using System.Text;
 
@@ -11,12 +10,12 @@ namespace ytdlp.Services;
 
 public class ConfigsServices(
     IFileSystem fileSystem,
-    IOptions<PathConfiguration> paths,
+    IConfiguration configuration,
     IPathParserService pathParserService,
     ILogger<ConfigsServices> logger
     ) : IConfigsServices
 {
-    private readonly string configFolder = paths.Value.Config.ToString();
+    private readonly string configFolder = configuration["Paths:Config"] ?? "/app/configs";
     private readonly IFileSystem _fileSystem = fileSystem;
     private readonly IPathParserService pathParser = pathParserService;
     private readonly ILogger<ConfigsServices> _logger = logger;
@@ -28,7 +27,7 @@ public class ConfigsServices(
     /// <returns>complete path: "{configFolder}{configName}.conf"</returns>
     public string GetWholeConfigPath(string configName)
     {
-        string path = $"{configFolder}{configName}.conf";
+        string path = Path.Combine(configFolder, $"{configName}.conf");
         _logger.LogConfigPathResolved(configName, path);
         return path;
     }
@@ -39,7 +38,7 @@ public class ConfigsServices(
     /// <returns>List of names of configfiles</returns>
     public List<string> GetAllConfigNames()
     {
-        _logger.LogDebug("📄 Retrieving all config names from: {ConfigFolder}", configFolder);
+        _logger.LogDebug("Retrieving all config names from: {ConfigFolder}", configFolder);
         
         try
         {
@@ -155,7 +154,7 @@ public class ConfigsServices(
 
     public async Task<Result<string>> SetConfigContentAsync(string name, string configContent)
     {
-        _logger.LogInformation("🔄 Updating config: {ConfigName}", name);
+        _logger.LogInformation("Updating config: {ConfigName}", name);
         string path = GetWholeConfigPath(name);
         
         if (_fileSystem.File.Exists(path))
