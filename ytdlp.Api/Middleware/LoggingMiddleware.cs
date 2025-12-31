@@ -50,6 +50,7 @@ namespace ytdlp.Api.Middleware
                     stopwatch.ElapsedMilliseconds,
                     context.Response.ContentLength ?? 0);
 
+                responseBody.Position = 0;
                 await responseBody.CopyToAsync(originalBody);
             }
             catch (Exception ex)

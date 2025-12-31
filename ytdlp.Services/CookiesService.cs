@@ -1,7 +1,6 @@
 using FluentResults;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using ytdlp.Configs;
 using ytdlp.Services.Interfaces;
 
 namespace ytdlp.Services
@@ -12,12 +11,12 @@ namespace ytdlp.Services
     /// </summary>
     public class CookiesService(
         IPathParserService pathParserService, 
-        IOptions<PathConfiguration> paths,
+        IConfiguration configuration,
         ILogger<CookiesService> logger
         ) : ICookiesService
     {
         private readonly IPathParserService _pathParserService = pathParserService ?? throw new ArgumentNullException(nameof(pathParserService));
-        private readonly string cookiePath = paths.Value.Cookies;
+        private readonly string cookiePath = configuration["Paths:Cookies"] ?? "/app/cookies";
         private readonly ILogger<CookiesService> _logger = logger;
 
         /// <summary>

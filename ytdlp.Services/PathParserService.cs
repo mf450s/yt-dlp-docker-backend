@@ -1,24 +1,23 @@
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using ytdlp.Configs;
 using ytdlp.Services.Interfaces;
 using ytdlp.Services.Logging;
 
 namespace ytdlp.Services;
 
 public class PathParserService(
-    IOptions<PathConfiguration> paths,
+    IConfiguration configuration,
     ILogger<PathParserService> logger
     ) : IPathParserService
 {
-    private readonly string _downloadFolder = paths.Value.Downloads;
-    private readonly string _archiveFolder = paths.Value.Archive;
-    private readonly string _cookiesFolder = paths.Value.Cookies;
+    private readonly string _downloadFolder = configuration["Paths:Downloads"] ?? "/app/downloads";
+    private readonly string _archiveFolder = configuration["Paths:Archive"] ?? "/app/archive";
+    private readonly string _cookiesFolder = configuration["Paths:Cookies"] ?? "/app/cookies";
     private readonly ILogger<PathParserService> _logger = logger;
 
     /// <summary>
     /// prepends complete paths to yt-dlp paths/download/archive/cookies options.
-    /// Gets paths from <PathConfiguration>
+    /// Gets paths from appsettings.json "Paths" section
     /// </summary>
     /// <param name="line"></param>
     /// <returns>line with correct path</returns>

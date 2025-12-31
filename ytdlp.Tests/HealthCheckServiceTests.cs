@@ -1,10 +1,9 @@
 using Xunit;
 using Moq;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Configuration;
 using ytdlp.Services;
 using ytdlp.Services.Interfaces;
-using ytdlp.Configs;
 using ytdlp.Api;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,7 +13,7 @@ namespace ytdlp.Tests
     {
         private readonly Mock<ILogger<HealthCheckService>> _mockLogger;
         private readonly Mock<IDownloadingService> _mockDownloadingService;
-        private readonly Mock<IOptions<PathConfiguration>> _mockPathConfiguration;
+        private readonly Mock<IConfiguration> _mockConfiguration;
         private readonly HealthCheckService _healthCheckService;
 
         public HealthCheckServiceTests()
@@ -22,21 +21,17 @@ namespace ytdlp.Tests
             _mockLogger = new Mock<ILogger<HealthCheckService>>();
             _mockDownloadingService = new Mock<IDownloadingService>();
             
-            // Setup PathConfiguration mock with default test paths
-            var pathConfig = new PathConfiguration
-            {
-                Downloads = "./downloads",
-                Archive = "./archive",
-                Config = "./configs",
-                Cookies = "./cookies"
-            };
-            _mockPathConfiguration = new Mock<IOptions<PathConfiguration>>();
-            _mockPathConfiguration.Setup(x => x.Value).Returns(pathConfig);
+            // Setup Configuration mock with default test paths
+            _mockConfiguration = new Mock<IConfiguration>();
+            _mockConfiguration.Setup(c => c["Paths:Downloads"]).Returns("./downloads");
+            _mockConfiguration.Setup(c => c["Paths:Archive"]).Returns("./archive");
+            _mockConfiguration.Setup(c => c["Paths:Config"]).Returns("./configs");
+            _mockConfiguration.Setup(c => c["Paths:Cookies"]).Returns("./cookies");
             
             _healthCheckService = new HealthCheckService(
                 _mockLogger.Object, 
                 _mockDownloadingService.Object,
-                _mockPathConfiguration.Object);
+                _mockConfiguration.Object);
         }
 
         [Fact]
