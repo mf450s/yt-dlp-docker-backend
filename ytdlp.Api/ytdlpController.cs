@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using ytdlp.Services.Interfaces;
 using FluentResults;
 using System.Text;
@@ -86,20 +85,20 @@ namespace ytdlp.Api
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogDebug(
-                "[{CorrelationId}] 💯 GetConfigContentByName request | Config: {ConfigName}",
+                "[{CorrelationId}] GetConfigContentByName request | Config: {ConfigName}",
                 correlationId, configName);
             
             Result<string> configContent = configsServices.GetConfigContentByName(configName);
             if (configContent.IsFailed)
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Config not found | Config: {ConfigName}",
+                    "[{CorrelationId}] Config not found | Config: {ConfigName}",
                     correlationId, configName);
                 return NotFound(new { error = configContent.Errors[0].Message, correlationId });
             }
             
             _logger.LogDebug(
-                "[{CorrelationId}] 💯 Returning config content | Config: {ConfigName} | Size: {Size} bytes",
+                "[{CorrelationId}] Returning config content | Config: {ConfigName} | Size: {Size} bytes",
                 correlationId, configName, configContent.Value.Length);
             return Ok(configContent.Value);
         }
@@ -113,21 +112,21 @@ namespace ytdlp.Api
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] 🗑️ DeleteConfigByName request | Config: {ConfigName}",
+                "[{CorrelationId}] DeleteConfigByName request | Config: {ConfigName}",
                 correlationId, configName);
             
             Result<string> result = configsServices.DeleteConfigByName(configName);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Config deleted successfully | Config: {ConfigName}",
+                    "[{CorrelationId}] Config deleted successfully | Config: {ConfigName}",
                     correlationId, configName);
                 return NoContent();
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to delete config | Config: {ConfigName}",
+                    "[{CorrelationId}] Failed to delete config | Config: {ConfigName}",
                     correlationId, configName);
                 return NotFound(new { error = result.Errors[0].Message, correlationId });
             }
@@ -142,28 +141,28 @@ namespace ytdlp.Api
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] ✨ CreateNewConfig request | Config: {ConfigName}",
+                "[{CorrelationId}] CreateNewConfig request | Config: {ConfigName}",
                 correlationId, configName);
             
             using var reader = new StreamReader(Request.Body, Encoding.UTF8);
             string configContent = await reader.ReadToEndAsync();
             
             _logger.LogDebug(
-                "[{CorrelationId}] 📁 Creating config {ConfigName} with {Size} bytes",
+                "[{CorrelationId}] Creating config {ConfigName} with {Size} bytes",
                 correlationId, configName, configContent.Length);
 
             Result<string> result = await configsServices.CreateNewConfigAsync(configName, configContent);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Config created successfully | Config: {ConfigName}",
+                    "[{CorrelationId}] Config created successfully | Config: {ConfigName}",
                     correlationId, configName);
                 return Created();
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to create config | Config: {ConfigName} | Error: {Error}",
+                    "[{CorrelationId}] Failed to create config | Config: {ConfigName} | Error: {Error}",
                     correlationId, configName, result.Value);
                 return Conflict(new { error = result.Value, correlationId });
             }
@@ -178,28 +177,28 @@ namespace ytdlp.Api
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] 🔄 SetConfigContent request | Config: {ConfigName}",
+                "[{CorrelationId}] SetConfigContent request | Config: {ConfigName}",
                 correlationId, configName);
             
             using var reader = new StreamReader(Request.Body, Encoding.UTF8);
             string configContent = await reader.ReadToEndAsync();
             
             _logger.LogDebug(
-                "[{CorrelationId}] 📁 Updating config {ConfigName} with {Size} bytes",
+                "[{CorrelationId}] Updating config {ConfigName} with {Size} bytes",
                 correlationId, configName, configContent.Length);
             
             Result<string> result = await configsServices.SetConfigContentAsync(configName, configContent);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Config updated successfully | Config: {ConfigName}",
+                    "[{CorrelationId}] Config updated successfully | Config: {ConfigName}",
                     correlationId, configName);
                 return Ok(configContent);
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to update config | Config: {ConfigName}",
+                    "[{CorrelationId}] Failed to update config | Config: {ConfigName}",
                     correlationId, configName);
                 return NotFound(new { error = configContent, correlationId });
             }
