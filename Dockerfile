@@ -67,8 +67,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 # Expose port
 EXPOSE 8080
 
-# Health check with proper retry logic - uses readiness probe endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check only during startup - no periodic checks
+HEALTHCHECK --start-period=40s \
     CMD curl -f http://localhost:8080/api/healthcheck/ready || exit 1
 
 # Use tini as init process to handle signals correctly
