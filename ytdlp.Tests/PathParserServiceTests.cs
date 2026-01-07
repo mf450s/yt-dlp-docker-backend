@@ -1,7 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
 using ytdlp.Services;
-using Microsoft.Extensions.Options;
-using ytdlp.Configs;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace ytdlp.Tests.Services;
 
@@ -9,23 +10,21 @@ namespace ytdlp.Tests.Services;
 public class PathParserServiceTests
 {
     #region Setup
-    public PathParserService GetConfigsServices(
-        IOptions<PathConfiguration>? iOptionsPathConfig = null,
-        PathConfiguration? pathConfiguration = null
+    public PathParserService GetPathParserService(
+        string downloads = "/app/downloads/",
+        string archive = "/app/archive/",
+        string cookies = "/app/cookies"
     )
     {
-        iOptionsPathConfig ??= pathConfiguration != null
-            ? Options.Create(pathConfiguration)
-            : Options.Create(paths);
+        var configMock = new Mock<IConfiguration>();
+        configMock.Setup(c => c["Paths:Downloads"]).Returns(downloads);
+        configMock.Setup(c => c["Paths:Archive"]).Returns(archive);
+        configMock.Setup(c => c["Paths:Cookies"]).Returns(cookies);
 
-        return new PathParserService(iOptionsPathConfig);
+        var loggerMock = new Mock<ILogger<PathParserService>>();
+        
+        return new PathParserService(configMock.Object, loggerMock.Object);
     }
-
-    private readonly PathConfiguration paths = new()
-    {
-        Downloads = "/app/downloads/",
-        Archive = "/app/archive/"
-    };
     #endregion
 
     [Theory]
@@ -42,14 +41,22 @@ public class PathParserServiceTests
     [InlineData("--download-archive video.txt", "--download-archive \"/app/archive/video.txt\"")]
     [InlineData("--download-archive /video.txt", "--download-archive \"/app/archive/video.txt\"")]
     [InlineData("--download-archive \"archive.txt\"", "--download-archive \"/app/archive/archive.txt\"")]
+    // Cookie-Pfad Tests
+    [InlineData("--cookies /app/cookies/cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies /cookies.txt", "--cookies \"/app/cookies/cookies.txt\"")]
+    [InlineData("--cookies \"my cookies.txt\"", "--cookies \"/app/cookies/my cookies.txt\"")]
+    [InlineData("--cookies youtube-cookies.txt", "--cookies \"/app/cookies/youtube-cookies.txt\"")]
+    [InlineData("--cookies \"  cookies.txt  \"", "--cookies \"/app/cookies/cookies.txt\"")]
     // Keine Änderungen nötig
     [InlineData("--format bestvideo", "--format bestvideo")]
     [InlineData("-f best", "-f best")]
     [InlineData("# comment", "# comment")]
+    [InlineData("--cookies-from-browser chrome", "--cookies-from-browser chrome")]
     public void CheckAndFixPaths_ReturnsCorrectLine(string inputLine, string expectedOutputLine)
     {
         // Arrange
-        var service = GetConfigsServices();
+        var service = GetPathParserService();
 
         // Act
         string actualOutputLine = service.CheckAndFixPaths(inputLine);

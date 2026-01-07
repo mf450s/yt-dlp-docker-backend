@@ -2,7 +2,10 @@ using System.Diagnostics;
 using ytdlp.Services.Interfaces;
 
 namespace ytdlp.Services;
-// ProcessWrapper.cs - Wrapper um System.Diagnostics.Process
+
+/// <summary>
+/// Wrapper around System.Diagnostics.Process for dependency injection and testability.
+/// </summary>
 public class ProcessWrapper : IProcess
 {
     private readonly Process _process;
@@ -20,6 +23,7 @@ public class ProcessWrapper : IProcess
 
     public TextReader StandardOutput => _process.StandardOutput;
     public TextReader StandardError => _process.StandardError;
+    public int ExitCode => _process.ExitCode;
 
     public bool Start() => _process.Start();
 

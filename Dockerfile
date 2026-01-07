@@ -13,7 +13,7 @@ RUN dotnet restore ytdlp.Api/ytdlp.Api.csproj
 # Copy entire source
 COPY . .
 
-# Publish without RID (framework-dependent, no ReadyToRun)
+# Publish without RID
 RUN dotnet publish ytdlp.Api/ytdlp.Api.csproj \
     -c Release \
     -o /app/publish \
@@ -40,7 +40,7 @@ RUN apk add --no-cache \
     tini
 
 # Install yt-dlp with version pinning
-RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2024.12.06/yt-dlp \
+RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && yt-dlp --version
@@ -48,7 +48,7 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/download/2024.12.06/yt-dlp
 # Create dedicated non-root user and directories
 RUN addgroup -g 1000 -S media \
     && adduser -D -u 1000 -S -G media yt-dlp \
-    && mkdir -p /app/downloads /app/archive /app/configs \
+    && mkdir -p /app/downloads /app/archive /app/configs /app/cookies \
     && chown -R yt-dlp:media /app \
     && chmod -R 775 /app
 
@@ -56,16 +56,19 @@ RUN addgroup -g 1000 -S media \
 COPY --from=build --chown=yt-dlp:media /app/publish /app
 
 # Define volumes for persistence
-VOLUME ["/app/downloads", "/app/archive", "/app/configs"]
+VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies/"]
 
 # Switch to non-root user for security
 USER yt-dlp
 
+# Set ASP Enviroment for appsettings.json
+ENV ASPNETCORE_ENVIRONMENT=Production
+
 # Expose port
 EXPOSE 8080
 
-# Health check with proper retry logic - uses readiness probe endpoint
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Health check only during startup - no periodic checks
+HEALTHCHECK --start-period=40s \
     CMD curl -f http://localhost:8080/api/healthcheck/ready || exit 1
 
 # Use tini as init process to handle signals correctly

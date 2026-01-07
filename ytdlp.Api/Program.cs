@@ -1,33 +1,50 @@
 using ytdlp.Services.Interfaces;
 using ytdlp.Services;
 using System.IO.Abstractions;
-using ytdlp.Configs;
+using ytdlp.Api.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Logging with structured format
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.SetMinimumLevel(LogLevel.Information);
+builder.Logging.AddFilter("ytdlp.Services", LogLevel.Debug);
+builder.Logging.AddFilter("ytdlp.Api", LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
+
 // Add services to the container.
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "yt-dlp Download API",
+        Version = "v1",
+        Description = "API for downloading media using yt-dlp with custom configurations"
+    });
+});
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins",
-        builder =>
+        policy =>
         {
-            builder.WithOrigins("*")
-                   .AllowAnyHeader()
-                   .AllowAnyMethod();
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
         });
 });
 
 // Add DI
 builder.Services.AddScoped<IDownloadingService, DownloadingService>();
 builder.Services.AddScoped<IConfigsServices, ConfigsServices>();
+builder.Services.AddScoped<ICookiesService, CookiesService>();
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddScoped<IPathParserService, PathParserService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
-// builder.Services.AddScoped<IStartupConfigFixer, StartupConfigFixer>();
 
 builder.WebHost.ConfigureKestrel(options =>
 {
@@ -36,15 +53,20 @@ builder.WebHost.ConfigureKestrel(options =>
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Enable Swagger for all environments (not just Development)
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "yt-dlp API v1");
+    c.RoutePrefix = "swagger"; // Access at /swagger
+});
+
+// Add custom logging middleware early in the pipeline
+app.UseMiddleware<LoggingMiddleware>();
 
 app.UseCors("AllowAllOrigins");
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

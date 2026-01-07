@@ -1,0 +1,344 @@
+# Cookie Support Implementation
+
+Dieses Dokument beschreibt die Implementierung des Cookie-Supports für die yt-dlp Download API.
+
+## 🎯 Features
+
+- **Cookie-Verwaltung**: Vollständige CRUD-Operationen für Cookie-Dateien
+- **Download mit Cookies**: Optionale Weitergabe von Cookies bei Downloads
+- **Format-Unterstützung**: Netscape-Format und JSON-basierte Cookie-Dateien
+- **Validierung**: Automatische Format-Validierung von Cookie-Dateien
+- **Docker-Integration**: Dedicated Cookies-Ordner mit Volume-Mount
+
+## 🗂️ Neue Verzeichnisstruktur
+
+```
+.
+├── downloads/     # Heruntergeladene Inhalte
+├── archive/       # Download-Archive
+├── configs/       # yt-dlp Konfigurationsdateien
+├── cookies/       # 🆕 Cookie-Dateien
+└── ...
+```
+
+## 📋 API-Endpoints
+
+### Cookies Management
+
+#### GET `/api/cookies`
+Ruft alle verfügbaren Cookie-Dateinamen ab.
+
+**Response:**
+```json
+[
+  "cookies_youtube.txt",
+  "cookies_reddit.json",
+  "cookies_instagram.txt"
+]
+```
+
+#### GET `/api/cookies/{cookieName}`
+Ruft den Inhalt einer spezifischen Cookie-Datei ab.
+
+**Parameter:**
+- `cookieName` (string): Name der Cookie-Datei
+
+**Response:**
+```json
+{
+  "name": "cookies_youtube.txt",
+  "content": "# Netscape HTTP Cookie File\n..."
+}
+```
+
+#### POST `/api/cookies/{cookieName}`
+Erstellt eine neue Cookie-Datei.
+
+**Parameter:**
+- `cookieName` (string): Name der neuen Cookie-Datei
+
+**Body:** Cookie-Datei-Inhalt (Netscape-Format oder JSON)
+
+**Response:**
+```json
+{
+  "name": "cookies_youtube.txt",
+  "message": "Cookie file 'cookies_youtube.txt' created successfully."
+}
+```
+
+#### PATCH `/api/cookies/{cookieName}`
+Aktualisiert den Inhalt einer existierenden Cookie-Datei.
+
+**Parameter:**
+- `cookieName` (string): Name der Cookie-Datei
+
+**Body:** Aktualisierter Cookie-Datei-Inhalt
+
+**Response:**
+```json
+{
+  "name": "cookies_youtube.txt",
+  "message": "Cookie file 'cookies_youtube.txt' updated successfully."
+}
+```
+
+#### DELETE `/api/cookies/{cookieName}`
+Löscht eine Cookie-Datei.
+
+**Parameter:**
+- `cookieName` (string): Name der zu löschenden Cookie-Datei
+
+**Response:** 204 No Content
+
+### Download mit Cookies
+
+#### POST `/api/ytdlp/download`
+Startet einen Download mit optionaler Cookie-Authentifizierung.
+
+**Query Parameter:**
+- `confName` (string, required): Name der Konfigurationsdatei
+- `cookieName` (string, optional): Name der Cookie-Datei für Authentifizierung
+
+**Body:**
+```
+URL als String
+```
+
+**Example Request:**
+```bash
+curl -X POST http://localhost:5000/api/ytdlp/download?confName=default&cookieName=cookies_youtube.txt \
+  -H "Content-Type: application/json" \
+  -d '"https://www.youtube.com/watch?v=dQw4w9WgXcQ"'
+```
+
+**Response:**
+```json
+{
+  "message": "Download started",
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "config": "default",
+  "cookies": "cookies_youtube.txt"
+}
+```
+
+## 🛠️ Implementierungs-Details
+
+### Services
+
+#### CookiesService
+- **Namespace:** `ytdlp.Services`
+- **Interface:** `ICookiesService`
+- **Verantwortung:**
+  - CRUD-Operationen für Cookie-Dateien
+  - Format-Validierung (Netscape + JSON)
+  - Pfad-Management für Cookie-Dateien
+
+**Key Methods:**
+```csharp
+List<string> GetAllCookieNames();
+Result<string> GetCookieContentByName(string cookieName);
+Result<string> DeleteCookieByName(string cookieName);
+Task<Result<string>> CreateNewCookieAsync(string cookieName, string cookieContent);
+Task<Result<string>> SetCookieContentAsync(string cookieName, string cookieContent);
+string GetWholeCookiePath(string cookieName);
+```
+
+### Controller
+
+#### CookiesController
+- **Route:** `/api/cookies`
+- **Dependency:** `ICookiesService`
+- **Verantwortung:** HTTP-Endpoints für Cookie-Verwaltung
+
+#### ytdlpController (erweitert)
+- **Route:** `/api/ytdlp`
+- **Dependencies:** `IDownloadingService`, `IConfigsServices`, `ICookiesService`
+- **Verantwortung:** Download-Endpoint mit optionalem Cookie-Support
+
+### PathConfiguration
+
+```csharp
+public class PathConfiguration
+{
+    public string Downloads { get; set; } = "/app/downloads/";
+    public string Archive { get; set; } = "/app/archive/";
+    public string Config { get; set; } = "/app/configs/";
+    public string Cookies { get; set; } = "/app/cookies/";  // 🆕
+}
+```
+
+### DownloadingService (erweitert)
+
+```csharp
+public async Task TryDownloadingFromURL(
+    string url, 
+    string configFile, 
+    string? cookieFile = null)  // 🆕
+{
+    // Cookies werden mittels --cookies-from-browser an yt-dlp übergeben
+}
+```
+
+## 📦 Docker-Integration
+
+### docker-compose.yml Volume
+```yaml
+volumes:
+  - ./downloads:/app/downloads
+  - ./archive:/app/archive
+  - ./configs:/app/configs
+  - ./cookies:/app/cookies  # 🆕
+```
+
+### Dockerfile
+Keine Änderungen erforderlich - die `/app/cookies/` Verzeichnisstruktur wird vom Service erstellt.
+
+## ✅ Format-Unterstützung
+
+### Netscape HTTP Cookie File Format
+```
+# Netscape HTTP Cookie File
+# This file is generated by yt-dlp! Edit at your own risk.
+
+.youtube.com	TRUE	/	TRUE	1735689600	__Secure-1PSID	Ah...
+.youtube.com	TRUE	/	TRUE	1735689600	__Secure-3PSID	Xx...
+```
+
+### JSON Format
+```json
+[
+  {
+    "domain": ".youtube.com",
+    "name": "__Secure-1PSID",
+    "value": "Ah...",
+    "path": "/",
+    "secure": true,
+    "httpOnly": true,
+    "expires": 1735689600
+  }
+]
+```
+
+## 🔐 Sicherheitsüberlegungen
+
+- ✅ Cookie-Dateien sind lokal im `/app/cookies/` Verzeichnis gespeichert
+- ✅ Keine Speicherung von Cookies im Docker-Image
+- ✅ Format-Validierung verhindert ungültige Daten
+- ⚠️ Kekse sind nicht verschlüsselt in der Datei (entspricht yt-dlp Standard)
+- ⚠️ Der `/api/cookies/{name}` Endpoint gibt den kompletten Cookie-Inhalt zurück
+
+## 📝 Verwendungsbeispiele
+
+### Cookie-Datei erstellen
+```bash
+curl -X POST http://localhost:5000/api/cookies/youtube \
+  -H "Content-Type: text/plain" \
+  --data-binary @cookies.txt
+```
+
+### Download mit Cookie
+```bash
+curl -X POST "http://localhost:5000/api/ytdlp/download?confName=default&cookieName=youtube" \
+  -H "Content-Type: application/json" \
+  -d '"https://www.youtube.com/watch?v=dQw4w9WgXcQ"'
+```
+
+### Alle Cookies auflisten
+```bash
+curl http://localhost:5000/api/cookies
+```
+
+### Cookie-Datei abrufen
+```bash
+curl http://localhost:5000/api/cookies/youtube
+```
+
+### Cookie-Datei aktualisieren
+```bash
+curl -X PATCH http://localhost:5000/api/cookies/youtube \
+  -H "Content-Type: text/plain" \
+  --data-binary @updated_cookies.txt
+```
+
+### Cookie-Datei löschen
+```bash
+curl -X DELETE http://localhost:5000/api/cookies/youtube
+```
+
+## 🔄 Integration mit Konfigurationen
+
+Cookies und Konfigurationen können kombiniert werden:
+
+```bash
+# Konfiguration: default (speichert Videos in verschiedenen Formaten)
+# Cookie-Datei: netflix (authentifiziert bei Netflix)
+curl -X POST "http://localhost:5000/api/ytdlp/download?confName=default&cookieName=netflix" \
+  -H "Content-Type: application/json" \
+  -d '"https://www.netflix.com/watch/.."'
+```
+
+## 📊 Error Handling
+
+### 400 Bad Request
+- Leere Cookie-Namen
+- Ungültiges Cookie-Format
+- Fehlende Konfiguration oder Cookie-Datei beim Download
+
+### 404 Not Found
+- Cookie-Datei existiert nicht
+- Beim Löschen/Abrufen/Aktualisieren nicht vorhanden
+
+### 409 Conflict
+- Cookie-Datei existiert bereits (POST)
+- Ungültiges Format während Creation
+
+## 🧪 Testing
+
+### Unit Tests für CookiesService
+```csharp
+[Test]
+public async Task CreateNewCookieAsync_WithValidNetscapeFormat_Succeeds()
+{
+    // Arrange
+    var content = "# Netscape HTTP Cookie File\n.example.com\tTRUE\t/\tFALSE\t0\tcookie\tvalue";
+    
+    // Act
+    var result = await _cookiesService.CreateNewCookieAsync("test", content);
+    
+    // Assert
+    Assert.IsTrue(result.IsSuccess);
+}
+```
+
+## 🚀 Deployment
+
+```bash
+# Build und Start mit Docker Compose
+docker-compose up -d
+
+# Cookies folder wird automatisch erstellt bei:
+# - Container Start
+# - Erste Cookie-Erstellung über API
+```
+
+## 📚 Zusätzliche Ressourcen
+
+- [yt-dlp Cookie Support](https://github.com/yt-dlp/yt-dlp/wiki/Adding-support-for-a-new-site#authentication)
+- [Netscape Cookie Format](https://curl.se/docs/http-cookies.html)
+- [RFC 6265 - HTTP State Management Mechanism](https://tools.ietf.org/html/rfc6265)
+
+---
+
+**Commit-Nachrichten für diesen Feature:**
+- `feat: add Cookies folder path to PathConfiguration`
+- `feat: add ICookiesService interface for cookie management`
+- `feat: implement CookiesService for cookie file management`
+- `feat: add GetCookiesFolderPath method to PathParserService`
+- `feat: add GetCookiesFolderPath method to IPathParserService`
+- `feat: add cookie file support to DownloadingService`
+- `feat: add optional cookieFile parameter to IDownloadingService`
+- `feat: add CookiesController with full CRUD endpoints`
+- `feat: enhance ytdlpController to support cookie files in downloads`
+- `feat: register ICookiesService in dependency injection container`
+- `feat: add cookies volume to docker-compose.yml`
