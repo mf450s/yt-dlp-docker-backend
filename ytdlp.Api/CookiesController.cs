@@ -117,7 +117,7 @@ namespace ytdlp.Api
                 _logger.LogInformation(
                     "[{CorrelationId}] ✅ Cookie created successfully | Cookie: {CookieName}",
                     correlationId, cookieName);
-                return Created($"api/cookies/{cookieName}", new { name = cookieName, message = result.Value, correlationId });
+                return Created(new { name = cookieName, message = result.Value, correlationId });
             }
             else
             {
