@@ -1,0 +1,11 @@
+{
+  "CREDENTIALS_LOCATION": "/app/credentials/credentials.json",
+  "OUTPUT": "{album}/{song_name}.{ext}",
+  "ROOT_PATH": "/app/downloads/dreifragezeichen/",
+  "SONG_ARCHIVE": "/app/archive/dreifragezeichen_archive.json",
+  "MD_ALLGENRES": true,
+  "DOWNLOAD_QUALITY": "high",
+  "SKIP_PREVIOUSLY_DOWNLOADED": true,
+  "DOWNLOAD_REAL_TIME": true,
+  "LANGUAGE": "de"
+}

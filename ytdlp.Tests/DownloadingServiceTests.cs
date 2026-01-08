@@ -281,6 +281,96 @@ public sealed class DownloadingServiceTests : IDisposable
 
     #endregion
 
+    [Theory]
+    [InlineData("https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp", true)]
+    [InlineData("https://open.spotify.com/playlist/37i9dQZF1DX4o1sPnc8xWl", true)]
+    [InlineData("https://open.spotify.com/album/1301WleyT98MSxVHPZCA6M", true)]
+    [InlineData("https://spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp", true)]
+    [InlineData("https://www.youtube.com/watch?v=dQw4w9WgXcQ", false)]
+    [InlineData("https://www.twitch.tv/videos/123456789", false)]
+    [InlineData("https://www.soundcloud.com/artist/track", false)]
+    public async Task IsSpotifyUrl_WithVariousUrls_ReturnsCorrectValue(string url, bool expectedIsSpotify)
+    {
+        // Arrange
+        string configPath = "/app/configs/test.conf";
+        _mockConfigsService.Setup(x => x.GetWholeConfigPath(It.IsAny<string>()))
+            .Returns(configPath);
+
+        // Act
+        var processInfo = await DownloadingService.GetProcessStartInfoAsync(url, configPath, expectedIsSpotify);
+
+        // Assert
+        if (expectedIsSpotify)
+        {
+            Assert.Equal("zotify", processInfo.FileName);
+        }
+        else
+        {
+            Assert.Equal("yt-dlp", processInfo.FileName);
+        }
+    }
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_WithSpotifyUrl_CreatesZotifyProcess()
+    {
+        // Arrange
+        string url = "https://open.spotify.com/track/3n3Ppam7vgaVa1iaRUc9Lp";
+        string configPath = "/app/configs/spotify-default.json";
+
+        // Act
+        var processInfo = await DownloadingService.GetProcessStartInfoAsync(url, configPath, isSpotify: true);
+
+        // Assert
+        Assert.Equal("zotify", processInfo.FileName);
+        Assert.Contains(url, processInfo.Arguments);
+        Assert.Contains(configPath, processInfo.Arguments);
+        Assert.True(processInfo.RedirectStandardOutput);
+        Assert.True(processInfo.RedirectStandardError);
+        Assert.False(processInfo.UseShellExecute);
+    }
+
+    [Fact]
+    public async Task GetProcessStartInfoAsync_WithYouTubeUrl_CreatesYtDlpProcess()
+    {
+        // Arrange
+        string url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        string configPath = "/app/configs/default.conf";
+
+        // Act
+        var processInfo = await DownloadingService.GetProcessStartInfoAsync(url, configPath, isSpotify: false);
+
+        // Assert
+        Assert.Equal("yt-dlp", processInfo.FileName);
+        Assert.Contains(url, processInfo.Arguments);
+        Assert.Contains(configPath, processInfo.Arguments);
+        Assert.True(processInfo.RedirectStandardOutput);
+        Assert.True(processInfo.RedirectStandardError);
+        Assert.False(processInfo.UseShellExecute);
+    }
+
+    [Theory]
+    [InlineData("", false)]
+    [InlineData(null, false)]
+    [InlineData("https://open.spotify.com/TRACK/3n3Ppam7vgaVa1iaRUc9Lp", true)] // Case-insensitive
+    [InlineData("HTTPS://OPEN.SPOTIFY.COM/TRACK/3n3Ppam7vgaVa1iaRUc9Lp", true)] // Case-insensitive
+    public async Task GetProcessStartInfoAsync_WithEdgeCases_HandlesCorrectly(string? url, bool expectedIsSpotify)
+    {
+        // Arrange
+        string configPath = "/app/configs/test.conf";
+
+        // Act
+        var processInfo = await DownloadingService.GetProcessStartInfoAsync(url, configPath, expectedIsSpotify);
+
+        // Assert
+        if (expectedIsSpotify)
+        {
+            Assert.Equal("zotify", processInfo.FileName);
+        }
+        else
+        {
+            Assert.Equal("yt-dlp", processInfo.FileName);
+        }
+    }
 
     #region Helper Methods
 

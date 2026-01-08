@@ -37,7 +37,8 @@ RUN apk add --no-cache \
     curl \
     ca-certificates \
     tzdata \
-    tini
+    tini \
+    git
 
 # Install yt-dlp with version pinning
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
@@ -45,10 +46,14 @@ RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && yt-dlp --version
 
+# Install Zotify from PyPI
+RUN pip install --no-cache-dir zotify \
+    && zotify --help > /dev/null 2>&1 || true
+
 # Create dedicated non-root user and directories
 RUN addgroup -g 1000 -S media \
     && adduser -D -u 1000 -S -G media yt-dlp \
-    && mkdir -p /app/downloads /app/archive /app/configs /app/cookies \
+    && mkdir -p /app/downloads /app/archive /app/configs /app/cookies /app/credentials \
     && chown -R yt-dlp:media /app \
     && chmod -R 775 /app
 
@@ -56,7 +61,7 @@ RUN addgroup -g 1000 -S media \
 COPY --from=build --chown=yt-dlp:media /app/publish /app
 
 # Define volumes for persistence
-VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies/"]
+VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies/", "/app/credentials"]
 
 # Switch to non-root user for security
 USER yt-dlp
