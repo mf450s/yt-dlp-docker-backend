@@ -157,7 +157,7 @@ namespace ytdlp.Api
                 _logger.LogInformation(
                     "[{CorrelationId}] Config created successfully | Config: {ConfigName}",
                     correlationId, configName);
-                return Created(new {name = configName, message = result.Value, correlationId});
+                return Created(configName, new {name = configName, message = result.Value, correlationId});
             }
             else
             {
