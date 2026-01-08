@@ -22,30 +22,44 @@ public class ConfigsServices(
 
     /// <summary>
     /// gets absolute path to a configfile
+    /// Supports multiple extensions: .conf (yt-dlp) and .json (Zotify)
     /// </summary>
-    /// <param name="configName">name of the configfile</param>
-    /// <returns>complete path: "{configFolder}{configName}.conf"</returns>
+    /// <param name="configName">name of the configfile (with or without extension)</param>
+    /// <returns>complete path: "{configFolder}{configName}.{ext}" or "{configFolder}{configName}"</returns>
     public string GetWholeConfigPath(string configName)
     {
-        string path = Path.Combine(configFolder, $"{configName}.conf");
-        _logger.LogConfigPathResolved(configName, path);
-        return path;
+        // If config name already includes .json or .conf, use it as-is
+        if (configName.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || 
+            configName.EndsWith(".conf", StringComparison.OrdinalIgnoreCase))
+        {
+            string path = Path.Combine(configFolder, configName);
+            _logger.LogConfigPathResolved(configName, path);
+            return path;
+        }
+
+        // Default to .conf extension for yt-dlp
+        string defaultPath = Path.Combine(configFolder, $"{configName}.conf");
+        _logger.LogConfigPathResolved(configName, defaultPath);
+        return defaultPath;
     }
 
     /// <summary>
     /// Gets all config names in the configFolder
+    /// Supports both .conf (yt-dlp) and .json (Zotify) files
     /// </summary>
-    /// <returns>List of names of configfiles</returns>
+    /// <returns>List of names of configfiles (without extension)</returns>
     public List<string> GetAllConfigNames()
     {
         _logger.LogDebug("Retrieving all config names from: {ConfigFolder}", configFolder);
 
         try
         {
-            var files = _fileSystem.Directory.GetFiles(configFolder, "*.conf");
+            var confFiles = _fileSystem.Directory.GetFiles(configFolder, "*.conf");
+            var jsonFiles = _fileSystem.Directory.GetFiles(configFolder, "*.json");
+            var allFiles = confFiles.Concat(jsonFiles);
             var configNames = new List<string>();
 
-            foreach (var file in files)
+            foreach (var file in allFiles)
             {
                 string fileName = _fileSystem.Path.GetFileName(file);
                 string nameWithoutExtension = _fileSystem.Path.GetFileNameWithoutExtension(fileName);
@@ -64,13 +78,36 @@ public class ConfigsServices(
 
     /// <summary>
     /// gets one configfile by name
+    /// Tries both .conf and .json extensions if no extension is provided
     /// </summary>
     /// <param name="name"></param>
     /// <returns>content of the file</returns>
     public Result<string> GetConfigContentByName(string name)
     {
         _logger.LogDebug("Retrieving config content for: {ConfigName}", name);
-        string path = GetWholeConfigPath(name);
+        
+        // If name has extension, use it directly
+        if (name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || 
+            name.EndsWith(".conf", StringComparison.OrdinalIgnoreCase))
+        {
+            return ReadConfigFile(name);
+        }
+
+        // Try .conf first (default)
+        var result = ReadConfigFile($"{name}.conf");
+        if (result.IsSuccess)
+            return result;
+
+        // Try .json as fallback
+        return ReadConfigFile($"{name}.json");
+    }
+
+    /// <summary>
+    /// Helper method to read a config file with full path
+    /// </summary>
+    private Result<string> ReadConfigFile(string fileName)
+    {
+        string path = Path.Combine(configFolder, fileName);
 
         if (_fileSystem.File.Exists(path))
         {
@@ -78,18 +115,18 @@ public class ConfigsServices(
             {
                 using var reader = _fileSystem.File.OpenText(path);
                 string content = reader.ReadToEnd();
-                _logger.LogConfigRetrieved(name, content.Length);
+                _logger.LogConfigRetrieved(Path.GetFileNameWithoutExtension(fileName), content.Length);
                 return Result.Ok(content);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error reading config file: {ConfigName} at {Path}", name, path);
+                _logger.LogError(ex, "Error reading config file: {FileName} at {Path}", fileName, path);
                 return Result.Fail($"Error reading config file: {ex.Message}");
             }
         }
         else
         {
-            _logger.LogConfigNotFound(name);
+            _logger.LogConfigNotFound(fileName);
             return Result.Fail($"Config file not found: {path}");
         }
     }
@@ -97,25 +134,47 @@ public class ConfigsServices(
     public Result<string> DeleteConfigByName(string name)
     {
         _logger.LogInformation("Attempting to delete config: {ConfigName}", name);
-        string path = GetWholeConfigPath(name);
+        
+        // If name has extension, use it directly
+        if (name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) || 
+            name.EndsWith(".conf", StringComparison.OrdinalIgnoreCase))
+        {
+            return DeleteConfigFile(name);
+        }
+
+        // Try .conf first (default)
+        var result = DeleteConfigFile($"{name}.conf");
+        if (result.IsSuccess)
+            return result;
+
+        // Try .json as fallback
+        return DeleteConfigFile($"{name}.json");
+    }
+
+    /// <summary>
+    /// Helper method to delete a config file
+    /// </summary>
+    private Result<string> DeleteConfigFile(string fileName)
+    {
+        string path = Path.Combine(configFolder, fileName);
 
         if (_fileSystem.File.Exists(path))
         {
             try
             {
                 _fileSystem.File.Delete(path);
-                _logger.LogConfigDeleted(name);
+                _logger.LogConfigDeleted(Path.GetFileNameWithoutExtension(fileName));
                 return Result.Ok();
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error deleting config file: {ConfigName} at {Path}", name, path);
+                _logger.LogError(ex, "Error deleting config file: {FileName} at {Path}", fileName, path);
                 return Result.Fail($"Error deleting config file: {ex.Message}");
             }
         }
         else
         {
-            _logger.LogConfigNotFound(name);
+            _logger.LogConfigNotFound(fileName);
             return Result.Fail("File does not exist");
         }
     }
@@ -238,7 +297,7 @@ public class ConfigsServices(
         {
             char c = line[i];
 
-            if (c == '"' || c == '\'')
+            if (c == '"' || c == '\')
             {
                 inQuotes = !inQuotes;
                 currentArg.Append(c);
