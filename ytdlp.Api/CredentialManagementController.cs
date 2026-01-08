@@ -7,12 +7,12 @@ namespace ytdlp.Api
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class CookiesController(
+    public class CredentialManagementController(
         ICookiesService cookiesService,
-        ILogger<CookiesController> logger
+        ILogger<CredentialManagementController> logger
         ) : ControllerBase
     {
-        private readonly ILogger<CookiesController> _logger = logger;
+        private readonly ILogger<CredentialManagementController> _logger = logger;
 
         /// <summary>
         /// Retrieves all available cookie file names.
