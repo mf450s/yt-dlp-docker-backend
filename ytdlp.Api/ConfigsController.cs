@@ -16,7 +16,7 @@ namespace ytdlp.Api
         /// <summary>
         /// Retrieves all available configuration file names.
         /// </summary>
-        [HttpGet("config")]
+        [HttpGet]
         public IActionResult GetAllConfigNames()
         {
             var correlationId = HttpContext.TraceIdentifier;
@@ -36,7 +36,7 @@ namespace ytdlp.Api
         /// Retrieves the content of a specific configuration file by name.
         /// </summary>
         /// <param name="configName">The name of the configuration file.</param>
-        [HttpGet("config/{configName}")]
+        [HttpGet("{configName}")]
         public IActionResult GetConfigContentByName(string configName)
         {
             var correlationId = HttpContext.TraceIdentifier;
@@ -63,7 +63,7 @@ namespace ytdlp.Api
         /// Deletes a configuration file by name.
         /// </summary>
         /// <param name="configName">The name of the configuration file to delete.</param>
-        [HttpDelete("config/{configName}")]
+        [HttpDelete("{configName}")]
         public IActionResult DeleteConfigByName(string configName)
         {
             var correlationId = HttpContext.TraceIdentifier;
@@ -92,7 +92,7 @@ namespace ytdlp.Api
         /// Creates a new configuration file with the provided content.
         /// </summary>
         /// <param name="configName">The name of the configuration file to create.</param>
-        [HttpPost("config/{configName}")]
+        [HttpPost("{configName}")]
         public async Task<IActionResult> CreateNewConfigAsync(string configName)
         {
             var correlationId = HttpContext.TraceIdentifier;
@@ -128,7 +128,7 @@ namespace ytdlp.Api
         /// Updates the content of an existing configuration file.
         /// </summary>
         /// <param name="configName">The name of the configuration file.</param>
-        [HttpPatch("config/{configName}")]
+        [HttpPatch("{configName}")]
         public async Task<IActionResult> SetConfigContentAsync(string configName)
         {
             var correlationId = HttpContext.TraceIdentifier;
