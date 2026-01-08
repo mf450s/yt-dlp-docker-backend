@@ -8,157 +8,157 @@ namespace ytdlp.Api
     [Route("api/[controller]")]
     [ApiController]
     public class CredentialManagementController(
-        ICookiesService cookiesService,
+        ICredentialService credentialManagerService,
         ILogger<CredentialManagementController> logger
         ) : ControllerBase
     {
         private readonly ILogger<CredentialManagementController> _logger = logger;
 
         /// <summary>
-        /// Retrieves all available cookie file names.
+        /// Retrieves all available credential file names.
         /// </summary>
         [HttpGet]
-        public List<string> GetAllCookieNames()
+        public List<string> GetAllCredentialNames()
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 GetAllCookieNames request received",
+                "[{CorrelationId}] GetAllCredentialNames request received",
                 correlationId);
 
-            var cookies = cookiesService.GetAllCookieNames();
+            var credentials = credentialManagerService.GetAllCredentialNames();
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 Returning {Count} cookie files",
-                correlationId, cookies.Count);
+                "[{CorrelationId}] Returning {Count} credential files",
+                correlationId, credentials.Count);
 
-            return cookies;
+            return credentials;
         }
 
         /// <summary>
-        /// Retrieves the content of a specific cookie file by name.
+        /// Retrieves the content of a specific credential file by name.
         /// </summary>
-        /// <param name="cookieName">The name of the cookie file.</param>
-        [HttpGet("{cookieName}")]
-        public IActionResult GetCookieContentByName(string cookieName)
+        /// <param name="credentialName">The name of the credential file.</param>
+        [HttpGet("{credentialName}")]
+        public IActionResult GetCredentialContentByName(string credentialName)
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 GetCookieContentByName request | Cookie: {CookieName}",
-                correlationId, cookieName);
+                "[{CorrelationId}] GetCredentialContentByName request | Credential: {credentialName}",
+                correlationId, credentialName);
 
-            Result<string> cookieContent = cookiesService.GetCookieContentByName(cookieName);
-            if (cookieContent.IsFailed)
+            Result<string> credentialContent = credentialManagerService.GetCredentialContentByName(credentialName);
+            if (credentialContent.IsFailed)
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Cookie not found | Cookie: {CookieName}",
-                    correlationId, cookieName);
-                return NotFound(new { error = cookieContent.Errors[0].Message, correlationId });
+                    "[{CorrelationId}] ⚠️ Credential not found | Credential: {credentialName}",
+                    correlationId, credentialName);
+                return NotFound(new { error = credentialContent.Errors[0].Message, correlationId });
             }
 
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 Returning cookie content | Cookie: {CookieName} | Size: {Size} bytes",
-                correlationId, cookieName, cookieContent.Value.Length);
+                "[{CorrelationId}] Returning credential content | Credential: {credentialName} | Size: {Size} bytes",
+                correlationId, credentialName, credentialContent.Value.Length);
 
-            return Ok(cookieContent.Value);
+            return Ok(credentialContent.Value);
         }
 
         /// <summary>
-        /// Deletes a cookie file by name.
+        /// Deletes a Credential file by name.
         /// </summary>
-        /// <param name="cookieName">The name of the cookie file to delete.</param>
-        [HttpDelete("{cookieName}")]
-        public IActionResult DeleteCookieByName(string cookieName)
+        /// <param name="credentialName">The name of the Credential file to delete.</param>
+        [HttpDelete("{credentialName}")]
+        public IActionResult DeleteCredentialByName(string credentialName)
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] 🗑️ DeleteCookieByName request | Cookie: {CookieName}",
-                correlationId, cookieName);
+                "[{CorrelationId}] 🗑️ DeleteCredentialByName request | Credential: {credentialName}",
+                correlationId, credentialName);
 
-            Result<string> result = cookiesService.DeleteCookieByName(cookieName);
+            Result<string> result = credentialManagerService.DeleteCredentialByName(credentialName);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Cookie deleted successfully | Cookie: {CookieName}",
-                    correlationId, cookieName);
+                    "[{CorrelationId}] ✅ Credential deleted successfully | Credential: {credentialName}",
+                    correlationId, credentialName);
                 return NoContent();
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to delete cookie | Cookie: {CookieName}",
-                    correlationId, cookieName);
+                    "[{CorrelationId}] ⚠️ Failed to delete Credential | Credential: {CredentialName}",
+                    correlationId, credentialName);
                 return NotFound(new { error = result.Errors[0].Message, correlationId });
             }
         }
 
         /// <summary>
-        /// Creates a new cookie file with the provided content.
-        /// Supports Netscape format and JSON-based cookie files.
+        /// Creates a new Credential file with the provided content.
+        /// Supports Netscape format and JSON-based Credential files.
         /// </summary>
-        /// <param name="cookieName">The name of the cookie file to create.</param>
-        [HttpPost("{cookieName}")]
-        public async Task<IActionResult> CreateNewCookieAsync(string cookieName)
+        /// <param name="credentialName">The name of the Credential file to create.</param>
+        [HttpPost("{credentialName}")]
+        public async Task<IActionResult> CreateNewCredentialAsync(string credentialName)
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] 🍪 CreateNewCookie request | Cookie: {CookieName}",
-                correlationId, cookieName);
+                "[{CorrelationId}] 🍪 CreateNewCredential request | Credential: {CredentialName}",
+                correlationId, credentialName);
 
             using var reader = new StreamReader(Request.Body, Encoding.UTF8);
-            string cookieContent = await reader.ReadToEndAsync();
+            string credentialContent = await reader.ReadToEndAsync();
 
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 Creating cookie {CookieName} with {Size} bytes",
-                correlationId, cookieName, cookieContent.Length);
+                "[{CorrelationId}] 🍪 Creating Credential {CredentialName} with {Size} bytes",
+                correlationId, credentialName, credentialContent.Length);
 
-            Result<string> result = await cookiesService.CreateNewCookieAsync(cookieName, cookieContent);
+            Result<string> result = await credentialManagerService.CreateNewCredentialAsync(credentialName, credentialContent);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Cookie created successfully | Cookie: {CookieName}",
-                    correlationId, cookieName);
-                return Created(cookieName, new { name = cookieName, message = result.Value, correlationId });
+                    "[{CorrelationId}] ✅ Credential created successfully | Credential: {CredentialName}",
+                    correlationId, credentialName);
+                return Created(credentialName, new { name = credentialName, message = result.Value, correlationId });
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to create cookie | Cookie: {CookieName} | Error: {Error}",
-                    correlationId, cookieName, result.Value);
+                    "[{CorrelationId}] ⚠️ Failed to create Credential | Credential: {CredentialName} | Error: {Error}",
+                    correlationId, credentialName, result.Value);
                 return Conflict(new { error = result.Value, correlationId });
             }
         }
 
         /// <summary>
-        /// Updates the content of an existing cookie file.
+        /// Updates the content of an existing Credential file.
         /// </summary>
-        /// <param name="cookieName">The name of the cookie file.</param>
-        [HttpPatch("{cookieName}")]
-        public async Task<IActionResult> SetCookieContentAsync(string cookieName)
+        /// <param name="credentialName">The name of the Credential file.</param>
+        [HttpPatch("{credentialName}")]
+        public async Task<IActionResult> SetCredentialContentAsync(string credentialName)
         {
             var correlationId = HttpContext.TraceIdentifier;
             _logger.LogInformation(
-                "[{CorrelationId}] 🍪 SetCookieContent request | Cookie: {CookieName}",
-                correlationId, cookieName);
+                "[{CorrelationId}] 🍪 SetCredentialContent request | Credential: {CredentialName}",
+                correlationId, credentialName);
 
             using var reader = new StreamReader(Request.Body, Encoding.UTF8);
-            string cookieContent = await reader.ReadToEndAsync();
+            string credentialContent = await reader.ReadToEndAsync();
 
             _logger.LogDebug(
-                "[{CorrelationId}] 🍪 Updating cookie {CookieName} with {Size} bytes",
-                correlationId, cookieName, cookieContent.Length);
+                "[{CorrelationId}] 🍪 Updating Credential {CredentialName} with {Size} bytes",
+                correlationId, credentialName, credentialContent.Length);
 
-            Result<string> result = await cookiesService.SetCookieContentAsync(cookieName, cookieContent);
+            Result<string> result = await credentialManagerService.SetCredentialContentAsync(credentialName, credentialContent);
             if (result.IsSuccess)
             {
                 _logger.LogInformation(
-                    "[{CorrelationId}] ✅ Cookie updated successfully | Cookie: {CookieName}",
-                    correlationId, cookieName);
-                return Ok(new { name = cookieName, message = result.Value, correlationId });
+                    "[{CorrelationId}] ✅ Credential updated successfully | Credential: {CredentialName}",
+                    correlationId, credentialName);
+                return Ok(new { name = credentialName, message = result.Value, correlationId });
             }
             else
             {
                 _logger.LogWarning(
-                    "[{CorrelationId}] ⚠️ Failed to update cookie | Cookie: {CookieName}",
-                    correlationId, cookieName);
+                    "[{CorrelationId}] ⚠️ Failed to update Credential | Credential: {CredentialName}",
+                    correlationId, credentialName);
                 return NotFound(new { error = result.Errors[0].Message, correlationId });
             }
         }

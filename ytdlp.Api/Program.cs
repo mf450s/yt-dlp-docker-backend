@@ -41,7 +41,7 @@ builder.Services.AddCors(options =>
 // Add DI
 builder.Services.AddScoped<IDownloadingService, DownloadingService>();
 builder.Services.AddScoped<IConfigsServices, ConfigsServices>();
-builder.Services.AddScoped<ICookiesService, CookiesService>();
+builder.Services.AddScoped<ICredentialService, ICredentialManagerService>();
 builder.Services.AddSingleton<IFileSystem, FileSystem>();
 builder.Services.AddScoped<IPathParserService, PathParserService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
