@@ -169,13 +169,13 @@ namespace ytdlp.Services
 
             if (string.IsNullOrWhiteSpace(credentialName))
             {
-                _logger.LogWarning("SetcredentialContentAsync called with empty credential name");
+                _logger.LogWarning("SetCredentialContentAsync called with empty credential name");
                 return Result.Fail("credential name cannot be empty.");
             }
 
             if (string.IsNullOrWhiteSpace(credentialContent))
             {
-                _logger.LogWarning("SetcredentialContentAsync called with empty content for {credentialName}", credentialName);
+                _logger.LogWarning("SetSredentialContentAsync called with empty content for {credentialName}", credentialName);
                 return Result.Fail("credential content cannot be empty.");
             }
 
