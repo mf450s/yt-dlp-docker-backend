@@ -39,7 +39,7 @@ namespace ytdlp.Api
 
             try
             {
-                await downloadingService.TryDownloadingFromURL(url, confName);
+                downloadingService.TryDownloadingFromURL(url, confName);
                 _logger.LogInformation(
                     "[{CorrelationId}] ✅ Download accepted and queued | URL: {Url} | Config: {ConfigName}",
                     correlationId, url, confName);
