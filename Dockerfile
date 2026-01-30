@@ -1,19 +1,17 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS build
-
+# ============================================================================
+# Stage 1: BUILD
+# ============================================================================
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy solution and project files for dependency resolution
 COPY ytdlp.sln .
 COPY ytdlp.Api/ytdlp.Api.csproj ./ytdlp.Api/
 COPY ytdlp.Services/ytdlp.Services.csproj ./ytdlp.Services/
 COPY ytdlp.Tests/ytdlp.Tests.csproj ./ytdlp.Tests/
 
 RUN dotnet restore ytdlp.Api/ytdlp.Api.csproj
-
-# Copy entire source
 COPY . .
 
-# Publish without RID
 RUN dotnet publish ytdlp.Api/ytdlp.Api.csproj \
     -c Release \
     -o /app/publish \
@@ -22,62 +20,54 @@ RUN dotnet publish ytdlp.Api/ytdlp.Api.csproj \
     -p:DebugSymbols=false
 
 # ============================================================================
-# Stage 2: RUNTIME
+# Stage 2: RUNTIME (Debian-based, easier for deno)
 # ============================================================================
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS runtime
-
-# Set working directory
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
-# Install runtime dependencies in one layer (minimal image)
-RUN apk add --no-cache \
-    python3 \
-    py3-pip \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
     tzdata \
     tini \
-    git
+    git \
+    python3 \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install yt-dlp with version pinning
+# yt-dlp
 RUN curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp \
     -o /usr/local/bin/yt-dlp \
     && chmod a+rx /usr/local/bin/yt-dlp \
     && yt-dlp --version
 
-# Install Zotify from PyPI
-RUN pip install --no-cache-dir zotify \
+# deno (JS runtime for YouTube)
+RUN curl -fsSL https://deno.land/install.sh | sh \
+    && ln -s /root/.deno/bin/deno /usr/local/bin/deno \
+    && deno --version
+
+# zotify
+RUN pip3 install --no-cache-dir zotify \
     && zotify --help > /dev/null 2>&1 || true
 
-# Create dedicated non-root user and directories
-RUN addgroup -g 1000 -S media \
-    && adduser -D -u 1000 -S -G media yt-dlp \
+RUN groupadd -g 1000 media \
+    && useradd -u 1000 -g media -m yt-dlp \
     && mkdir -p /app/downloads /app/archive /app/configs /app/cookies /app/credentials \
     && chown -R yt-dlp:media /app \
     && chmod -R 775 /app
 
-# Copy built application from build stage
 COPY --from=build --chown=yt-dlp:media /app/publish /app
 
-# Define volumes for persistence
-VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies/", "/app/credentials"]
+VOLUME ["/app/downloads", "/app/archive", "/app/configs", "/app/cookies", "/app/credentials"]
 
-# Switch to non-root user for security
 USER yt-dlp
-
-# Set ASP Enviroment for appsettings.json
 ENV ASPNETCORE_ENVIRONMENT=Production
 
-# Expose port
 EXPOSE 8080
 
-# Health check only during startup - no periodic checks
 HEALTHCHECK --start-period=40s \
     CMD curl -f http://localhost:8080/api/healthcheck/ready || exit 1
 
-# Use tini as init process to handle signals correctly
-ENTRYPOINT ["/sbin/tini", "--"]
-
-# Start the application
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["dotnet", "ytdlp.Api.dll"]
